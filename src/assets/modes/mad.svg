@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="260" viewBox="0 0 680 260">
+  <!-- Mad Movimiento: a soldier behind concrete cover, a red crosshair on the enemy. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b2540"/><stop offset="0.7" stop-color="#d9693a"/><stop offset="1" stop-color="#ff9a4d"/>
+    </linearGradient>
+    <filter id="g" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="680" height="260" fill="url(#sky)"/>
+  <path d="M0 190 L40 120 L70 120 L70 90 L110 90 L110 140 L160 140 L160 100 L210 100 L210 190Z M430 190 L430 110 L480 110 L480 70 L540 70 L540 130 L600 130 L600 96 L680 96 L680 190Z" fill="#12151f" opacity="0.9"/>
+  <rect y="190" width="680" height="70" fill="#0c0e15"/>
+  <path d="M0 200 H680" stroke="#ff2b3a" stroke-opacity="0.5" stroke-width="2"/>
+  <!-- Enemy troopers -->
+  <g fill="#0a0b10"><circle cx="372" cy="112" r="9"/><rect x="361" y="122" width="22" height="30" rx="4"/><rect x="383" y="130" width="26" height="5"/>
+    <circle cx="470" cy="128" r="8"/><rect x="460" y="137" width="20" height="26" rx="4"/></g>
+  <path d="M366 92 L378 92 L372 104Z" fill="#ff2b3a" filter="url(#g)"/>
+  <!-- Cover -->
+  <path d="M150 260 L170 120 L330 120 L350 260Z" fill="#6f6c66"/>
+  <path d="M170 120 H330" stroke="#a9a59d" stroke-width="3"/>
+  <!-- Player soldier -->
+  <g fill="#15171c"><circle cx="205" cy="104" r="16"/><path d="M180 96 A26 24 0 0 1 232 96 Z"/><rect x="186" y="118" width="46" height="60" rx="8"/><rect x="226" y="136" width="86" height="9" rx="3"/></g>
+  <rect x="199" y="102" width="20" height="6" fill="#ff3b3b" filter="url(#g)"/>
+  <rect x="190" y="136" width="40" height="7" fill="#c9a227"/>
+  <!-- Crosshair -->
+  <g stroke="#ff2b3a" stroke-width="3" fill="none" filter="url(#g)"><circle cx="372" cy="130" r="26"/><path d="M372 92 V110 M372 150 V168 M334 130 H352 M392 130 H410"/></g>
+  <text x="26" y="236" font-family="Impact, 'Arial Narrow', sans-serif" font-style="italic" font-size="34" fill="#f4f1ec" letter-spacing="2">MAD <tspan fill="#ff2b3a">MOVIMIENTO</tspan></text>
+</svg>

@@ -1,0 +1,138 @@
+import { useEffect, useState, type CSSProperties } from 'react';
+import { Icon } from '../components/Icon';
+import { fetchTopScores, PERIOD_TITLES, type GlobalScore, type LeaderboardPeriod } from '../features/online/globalLeaderboard';
+import { GAME_MODES, type GameModeId } from '../features/modes/modes';
+import type { Profile } from '../lib/storage';
+import { ONLINE_ENABLED } from '../lib/supabase';
+import './LeaderboardScreen.css';
+
+const RANKED = GAME_MODES.filter((m) => m.ranked);
+
+interface LeaderboardScreenProps {
+  profile: Profile;
+  initialMode: GameModeId;
+  onBack: () => void;
+}
+
+type Load = { state: 'loading' } | { state: 'ready'; rows: GlobalScore[] } | { state: 'offline' };
+
+export function LeaderboardScreen({ profile, initialMode, onBack }: LeaderboardScreenProps) {
+  const [mode, setMode] = useState<GameModeId>(RANKED.some((m) => m.id === initialMode) ? initialMode : 'classic');
+  const [period, setPeriod] = useState<LeaderboardPeriod>(initialMode === 'daily' ? 'today' : 'all');
+  const [load, setLoad] = useState<Load>(ONLINE_ENABLED ? { state: 'loading' } : { state: 'offline' });
+
+  useEffect(() => {
+    if (!ONLINE_ENABLED) return;
+    let alive = true;
+    fetchTopScores(mode, period).then((rows) => {
+      if (alive) setLoad(rows ? { state: 'ready', rows } : { state: 'offline' });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [mode, period]);
+
+  const local = profile.leaderboards[mode] ?? [];
+
+  return (
+    <main className="screen board-screen">
+      <header className="board-screen__head">
+        <div>
+          <p className="t-label">Player Rankings</p>
+          <h1 className="t-headline">Top Scores</h1>
+        </div>
+        <button type="button" className="btn btn--ghost btn--small" onClick={onBack}>
+          <Icon name="left" size={16} /> Back
+        </button>
+      </header>
+
+      <div className="board-screen__tabs" role="tablist">
+        {RANKED.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            role="tab"
+            aria-selected={m.id === mode}
+            className={`tab ${m.id === mode ? 'is-active' : ''}`}
+            style={{ '--accent': m.accent } as CSSProperties}
+            onClick={() => {
+              setMode(m.id);
+              if (ONLINE_ENABLED) setLoad({ state: 'loading' });
+            }}
+          >
+            {m.title}
+          </button>
+        ))}
+      </div>
+
+      <div className="board-screen__grid">
+        <section className="panel">
+          <div className="board-screen__panel-head">
+            <p className="t-label">Global</p>
+            <div className="segmented" role="group" aria-label="Period">
+              {(['all', 'week', 'today'] as const).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  className={p === period ? 'is-active' : ''}
+                  onClick={() => {
+                    setPeriod(p);
+                    if (ONLINE_ENABLED) setLoad({ state: 'loading' });
+                  }}
+                >
+                  {PERIOD_TITLES[p]}
+                </button>
+              ))}
+            </div>
+          </div>
+          {load.state === 'offline' && (
+            <p className="board-screen__empty">Global leaderboard will appear once online services (Supabase) are configured.</p>
+          )}
+          {load.state === 'loading' && <p className="board-screen__empty">Loading…</p>}
+          {load.state === 'ready' && load.rows.length === 0 && (
+            <p className="board-screen__empty">Empty for now — be the first!</p>
+          )}
+          {load.state === 'ready' && load.rows.length > 0 && (
+            <ol className="board board--global">
+              {load.rows.map((r, i) => (
+                <li key={`${r.created_at}${i}`} className={r.name === profile.nickname ? 'is-current' : ''}>
+                  <span className="board__rank">{i + 1}</span>
+                  <span className="board__score">
+                    {r.name}
+                    <small>{r.score.toLocaleString('en-US')}</small>
+                  </span>
+                  <span className="board__meta">
+                    {Math.round(r.accuracy * 100)}% · combo {r.best_combo}
+                  </span>
+                  <span className="board__date">{r.scheme === 'body' ? 'standing' : 'seated'}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+
+        <section className="panel">
+          <p className="t-label">On this device</p>
+          {local.length === 0 ? (
+            <p className="board-screen__empty">No runs recorded in this mode yet.</p>
+          ) : (
+            <ol className="board">
+              {local.map((e, i) => (
+                <li key={`${e.date}${i}`}>
+                  <span className="board__rank">{i + 1}</span>
+                  <span className="board__score">{e.score.toLocaleString('en-US')}</span>
+                  <span className="board__meta">
+                    {Math.round(e.accuracy * 100)}% · combo {e.bestCombo}
+                  </span>
+                  <span className="board__date">
+                    {new Date(e.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}

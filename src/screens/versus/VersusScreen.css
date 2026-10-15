@@ -1,0 +1,302 @@
+.versus {
+  position: relative;
+  padding: 0 var(--gutter) var(--gutter);
+  height: calc(100dvh - var(--topbar-h));
+  min-height: 520px;
+}
+
+.versus__stages {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  height: 100%;
+}
+
+.versus__stage {
+  position: relative;
+  border-radius: var(--radius-l);
+  border: 2px solid color-mix(in srgb, var(--pc) 45%, transparent);
+  overflow: hidden;
+  min-height: 0;
+  box-shadow: var(--shadow-soft);
+}
+
+.versus__hud {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  pointer-events: none;
+}
+
+.versus__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 10px;
+}
+
+.versus__tag {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 14px;
+  color: #0c0d16;
+  background: var(--pc);
+}
+
+.versus__score {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 4vw, 48px);
+  line-height: 1;
+}
+
+.versus__combo {
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--pc);
+}
+
+.versus__miss,
+.versus__lost,
+.versus__done {
+  padding: 10px 14px;
+  border-radius: var(--radius-m);
+  background: rgba(12, 13, 22, 0.92);
+  font-size: clamp(15px, 1.6vw, 19px);
+  font-weight: 700;
+  text-align: center;
+  max-width: 92%;
+}
+
+.versus__miss {
+  border: 1px solid rgba(255, 107, 87, 0.6);
+}
+
+.versus__lost {
+  border: 1px solid rgba(255, 199, 107, 0.6);
+  color: var(--warn);
+}
+
+/* What to do next — big enough to read from 2–3 m. */
+.versus__bottom {
+  margin-top: auto;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.versus__cue {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 22px;
+  border-radius: 999px;
+  background: rgba(12, 13, 22, 0.92);
+  border: 2px solid color-mix(in srgb, var(--pc) 60%, transparent);
+  color: var(--pc);
+}
+
+.versus__cue strong {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 2.8vw, 34px);
+  color: var(--text);
+  text-transform: uppercase;
+}
+
+.versus__hint {
+  max-width: 92%;
+  padding: 8px 14px;
+  border-radius: var(--radius-m);
+  background: rgba(255, 199, 107, 0.14);
+  border: 1px solid rgba(255, 199, 107, 0.5);
+  font-size: clamp(15px, 1.6vw, 19px);
+  font-weight: 700;
+  text-align: center;
+}
+
+/* Both players see themselves (and the middle line) during the race. */
+.versus__pip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--gutter) + 10px);
+  translate: -50% 0;
+  width: clamp(150px, 15vw, 220px);
+  z-index: 3;
+  border-radius: var(--radius-m);
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.8);
+}
+
+.versus__pip .viewport--pip {
+  width: 100%;
+}
+
+.versus__countdown {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  translate: -50% -50%;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.versus__setup,
+.versus__end {
+  text-align: center;
+  gap: 16px;
+  background: rgba(12, 13, 22, 0.95);
+  overflow-y: auto;
+}
+
+.versus__cam {
+  position: relative;
+  width: min(560px, 92%);
+}
+
+.versus__camera {
+  width: 100%;
+  /* The whole (wide) picture: both players and their zones stay visible. */
+  aspect-ratio: var(--video-aspect, 4 / 3);
+}
+
+.versus__cam-label {
+  position: absolute;
+  top: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #0c0d16;
+  z-index: 2;
+}
+
+.versus__cam-label--p1 {
+  left: 12px;
+  background: var(--cyan);
+}
+
+.versus__cam-label--p2 {
+  right: 12px;
+  background: var(--warn);
+}
+
+.versus__loading {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-2);
+  animation: versus-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes versus-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.versus__players {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: min(560px, 92%);
+}
+
+.versus__player {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: var(--radius-m);
+  border: 2px solid color-mix(in srgb, var(--pc) 35%, transparent);
+  background: var(--surface);
+  text-align: left;
+  transition:
+    border-color 0.3s,
+    background 0.3s;
+}
+
+.versus__player.is-ready {
+  border-color: var(--pc);
+  background: color-mix(in srgb, var(--pc) 12%, transparent);
+}
+
+.versus__player-name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  color: var(--pc);
+}
+
+.versus__player-status {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.versus__bar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.versus__bar span {
+  display: block;
+  height: 100%;
+  background: var(--pc);
+  transition: width 0.2s;
+}
+
+.versus__winner {
+  font-size: clamp(40px, 7vw, 88px);
+}
+
+.versus__results {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+.versus__results .is-winner {
+  box-shadow: 0 0 0 2px var(--pc);
+}
+
+.versus__rematch {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+
+/* Phones: both tracks fit the screen — stacked when held upright, side by side sideways. */
+@media (max-width: 900px), (max-height: 500px) {
+  .versus {
+    height: calc(100dvh - var(--topbar-h));
+    min-height: 0;
+    padding: 0 8px 8px;
+  }
+  .versus__stages {
+    gap: 8px;
+  }
+  .versus__stage {
+    border-radius: var(--radius-m);
+  }
+  .versus__hud {
+    padding: 8px;
+    gap: 6px;
+  }
+  .versus__players {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 900px) {
+  .versus__stages {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+}

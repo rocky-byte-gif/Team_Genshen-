@@ -1,0 +1,150 @@
+import type { GameOutcome } from '../features/gameplay/types';
+import { addSession, NO_ACHIEVEMENTS, type AchievementId, type AchievementState, type SessionFacts } from '../features/achievements/achievements';
+import { DEFAULT_DIFFICULTY, isDifficulty, type Difficulty } from '../features/modes/difficulty';
+
+const KEY = 'motion-rush:v1';
+const LEADERBOARD_SIZE = 8;
+
+export interface LeaderboardEntry {
+  score: number;
+  /** 0..1 */
+  accuracy: number;
+  bestCombo: number;
+  outcome: GameOutcome;
+  /** ISO timestamp. */
+  date: string;
+  name?: string;
+}
+
+export interface Profile {
+  /** Best score across all modes (landing screen). */
+  bestScore: number;
+  bestCombo: number;
+  sessions: number;
+  /** Local top scores per game mode. */
+  leaderboards: Record<string, LeaderboardEntry[]>;
+  muted: boolean;
+  /** Name shown on the global leaderboard and in online duels. */
+  nickname: string;
+  /** Random id for online presence (not personal data). */
+  playerId: string;
+  /** Last difficulty picked in the menu. */
+  difficulty: Difficulty;
+  achievements: AchievementState;
+}
+
+function randomId(): string {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+}
+
+const EMPTY = (): Profile => ({
+  bestScore: 0,
+  bestCombo: 0,
+  sessions: 0,
+  leaderboards: {},
+  muted: false,
+  nickname: '',
+  playerId: randomId(),
+  difficulty: DEFAULT_DIFFICULTY,
+  achievements: { ...NO_ACHIEVEMENTS, unlocked: [] },
+});
+
+/** localStorage can throw (private mode, blocked storage) — the app must still work. */
+export function loadProfile(): Profile {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) {
+      const fresh = EMPTY();
+      saveProfile(fresh);
+      return fresh;
+    }
+    const parsed = JSON.parse(raw) as Partial<Profile> & { leaderboard?: LeaderboardEntry[] };
+    const profile: Profile = { ...EMPTY(), ...parsed, leaderboards: { ...(parsed.leaderboards ?? {}) } };
+    if (!isDifficulty(profile.difficulty)) profile.difficulty = DEFAULT_DIFFICULTY;
+    const a = profile.achievements as Partial<AchievementState> | undefined;
+    profile.achievements = { unlocked: Array.isArray(a?.unlocked) ? a.unlocked : [], dodges: typeof a?.dodges === 'number' ? a.dodges : 0 };
+    // v1 kept one list — it belongs to the classic mode.
+    if (parsed.leaderboard && !profile.leaderboards.classic) profile.leaderboards.classic = parsed.leaderboard;
+    if (!parsed.playerId) saveProfile(profile);
+    return profile;
+  } catch {
+    return EMPTY();
+  }
+}
+
+function saveProfile(profile: Profile): void {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(profile));
+  } catch {
+    // Storage unavailable: progress simply is not persisted.
+  }
+}
+
+export function bestFor(profile: Profile, mode: string): number {
+  return profile.leaderboards[mode]?.[0]?.score ?? 0;
+}
+
+export interface RecordedSession {
+  profile: Profile;
+  mode: string;
+  /** 1-based rank in the local leaderboard of this mode, null if it did not make it. */
+  rank: number | null;
+  isNewBest: boolean;
+  previousBest: number;
+}
+
+/**
+ * `countsForProfile: false` keeps the mode's own board but leaves the overall
+ * best score and combo alone (mini-games score on different scales).
+ */
+export function recordSession(mode: string, entry: LeaderboardEntry, { countsForProfile = true } = {}): RecordedSession {
+  const profile = loadProfile();
+  const previousBest = bestFor(profile, mode);
+  const board = [...(profile.leaderboards[mode] ?? []), entry]
+    .sort((a, b) => b.score - a.score || b.accuracy - a.accuracy)
+    .slice(0, LEADERBOARD_SIZE);
+  const index = board.indexOf(entry);
+  const next: Profile = {
+    ...profile,
+    sessions: profile.sessions + 1,
+    bestScore: countsForProfile ? Math.max(profile.bestScore, entry.score) : profile.bestScore,
+    bestCombo: countsForProfile ? Math.max(profile.bestCombo, entry.bestCombo) : profile.bestCombo,
+    leaderboards: { ...profile.leaderboards, [mode]: board },
+  };
+  saveProfile(next);
+  return { profile: next, mode, rank: index >= 0 ? index + 1 : null, isNewBest: entry.score > previousBest, previousBest };
+}
+
+export function saveMuted(muted: boolean): void {
+  saveProfile({ ...loadProfile(), muted });
+}
+
+/** Adds a finished game to the achievements; returns the profile and what was unlocked. */
+export function recordAchievements(facts: SessionFacts): { profile: Profile; unlocked: AchievementId[] } {
+  const profile = loadProfile();
+  const { state, unlocked } = addSession(profile.achievements, facts);
+  const next = { ...profile, achievements: state };
+  saveProfile(next);
+  return { profile: next, unlocked };
+}
+
+export function saveDifficulty(difficulty: Difficulty): Profile {
+  const next = { ...loadProfile(), difficulty };
+  saveProfile(next);
+  return next;
+}
+
+/** 2–20 visible characters; trimmed. */
+export function cleanNickname(name: string): string {
+  return name.replace(/\s+/g, ' ').trim().slice(0, 20);
+}
+
+export function saveNickname(name: string): Profile {
+  const next = { ...loadProfile(), nickname: cleanNickname(name) };
+  saveProfile(next);
+  return next;
+}
