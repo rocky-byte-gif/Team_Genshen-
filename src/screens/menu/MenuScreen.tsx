@@ -36,7 +36,7 @@ const byCategory = (c: ModeCategory) => GAME_MODES.filter((m) => m.category === 
 const HITS: readonly GameModeId[] = ['mad', 'classic', 'boss', 'dance', 'stars', 'freeze', 'versus'];
 
 const ITEMS: readonly MenuItem[] = [
-  { id: 'campaign', title: 'Mad Movimiento', eyebrow: 'Campaign · 8 missions · 8 weapons', modes: ['mad'] },
+  { id: 'campaign', title: 'Shadow Protocol', eyebrow: 'Campaign · Combat Operations', modes: ['mad'] },
   { id: 'play', title: 'Play', eyebrow: 'Quick Start · Best Modes', modes: HITS },
   { id: 'run', title: 'Run', eyebrow: 'Run, jump, duck', modes: byCategory('run') },
   { id: 'arcade', title: 'Mini-Games', eyebrow: 'Short rounds', modes: byCategory('arcade') },
@@ -268,7 +268,7 @@ export function MenuScreen({ engine, ready, profile, lastMode, invite, muted, on
       <section className="menu__left">
         <header className="menu__brand">
           <h1 className="menu__logo">
-            MOTION<span>//</span>RUSH
+            MAD<span>//</span>MOVIMIENTO
           </h1>
           <p className="menu__tagline">The game where you are the controller</p>
         </header>

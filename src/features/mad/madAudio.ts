@@ -61,6 +61,12 @@ class MadAudio {
 
   shot(w: WeaponId): void {
     switch (w) {
+      case 'boxing':
+        this.punchWhoosh();
+        break;
+      case 'sword':
+        this.swordSwoosh();
+        break;
       case 'knife':
         this.burst({ dur: 0.18, gain: 0.35, freq: 5200, to: 900, type: 'bandpass', q: 1.2 });
         break;
@@ -119,6 +125,31 @@ class MadAudio {
 
   dry(): void {
     this.burst({ dur: 0.03, gain: 0.35, freq: 5000, type: 'highpass' });
+  }
+
+  punchWhoosh(): void {
+    this.burst({ dur: 0.14, gain: 0.45, freq: 1400, to: 320, type: 'bandpass', q: 1.5 });
+    this.thump(130, 45, 0.1, 0.4);
+  }
+
+  punchHit(head = false): void {
+    this.burst({ dur: 0.12, gain: head ? 0.75 : 0.55, freq: head ? 2200 : 1100, to: 300, type: 'bandpass', q: 1.8 });
+    this.thump(head ? 180 : 120, 40, 0.16, head ? 0.9 : 0.7);
+  }
+
+  swordSwoosh(): void {
+    this.burst({ dur: 0.22, gain: 0.55, freq: 4800, to: 950, type: 'bandpass', q: 2.2 });
+    this.thump(240, 90, 0.12, 0.35);
+  }
+
+  swordClash(): void {
+    this.burst({ dur: 0.25, gain: 0.85, freq: 5600, to: 2400, type: 'highpass', q: 3.5 });
+    this.thump(520, 220, 0.18, 0.6);
+  }
+
+  cameraSwitch(): void {
+    this.burst({ dur: 0.08, gain: 0.4, freq: 3200, to: 1600, type: 'bandpass', q: 2.5 });
+    this.thump(440, 880, 0.12, 0.45);
   }
 
   reload(): void {

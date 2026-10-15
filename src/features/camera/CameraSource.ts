@@ -72,19 +72,47 @@ export class CameraSource {
 
     let stream: MediaStream;
     let requested = preferred;
+
+    const requestMedia = (constraints: MediaStreamConstraints, timeoutMs = 8000): Promise<MediaStream> => {
+      return new Promise<MediaStream>((resolve, reject) => {
+        let done = false;
+        const timer = window.setTimeout(() => {
+          if (!done) {
+            done = true;
+            reject(new CameraError('unknown', 'Camera permission request timed out'));
+          }
+        }, timeoutMs);
+
+        navigator.mediaDevices
+          .getUserMedia(constraints)
+          .then((s) => {
+            if (!done) {
+              done = true;
+              window.clearTimeout(timer);
+              resolve(s);
+            } else {
+              s.getTracks().forEach((t) => t.stop());
+            }
+          })
+          .catch((err) => {
+            if (!done) {
+              done = true;
+              window.clearTimeout(timer);
+              reject(err);
+            }
+          });
+      });
+    };
+
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: preferred });
-    } catch (error) {
-      // Some cameras reject the preferred constraints — retry with anything available.
-      if (error instanceof Error && error.name === 'OverconstrainedError') {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
-          requested = {};
-        } catch (retryError) {
-          throw new CameraError(classifyCameraError(retryError));
-        }
-      } else {
-        throw new CameraError(classifyCameraError(error));
+      stream = await requestMedia({ audio: false, video: preferred }, 6000);
+    } catch {
+      // Preferred constraints (e.g. facingMode: 'user' or high resolution) failed or timed out — fallback to basic video
+      try {
+        stream = await requestMedia({ audio: false, video: true }, 6000);
+        requested = {};
+      } catch (retryError) {
+        throw new CameraError(classifyCameraError(retryError));
       }
     }
 

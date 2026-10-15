@@ -391,6 +391,20 @@ export class MadGame {
     let ay = aimIn.y + (this.rng() - 0.5) * 2 * w.spread;
     let connected = false;
 
+    if (w.id === 'auto') {
+      // Smart aim assist: magnetizes smoothly towards target so aiming is effortless and accurate
+      for (const e of this.enemies) {
+        const t = targets.get(e.id);
+        if (!t || !this.canHit(e, peek)) continue;
+        const d = dist(ax, ay, t.bx, t.by);
+        if (d < 0.48) {
+          ax = ax + (t.bx - ax) * 0.78;
+          ay = ay + (t.by - ay) * 0.78;
+          break;
+        }
+      }
+    }
+
     if (w.splash > 0) {
       // Explosives land on the nearest target in reach, otherwise where the hand points.
       let best: { e: Enemy; d: number; t: Target } | null = null;
@@ -414,26 +428,32 @@ export class MadGame {
           connected = true;
         }
       }
-    } else if (w.style === 'slash') {
+    } else if (w.style === 'punch' || w.style === 'slash') {
       this.fx.push({ t: 'impact', x: ax, y: ay });
+      const reachArc = w.style === 'punch' ? 0.45 : MAD.knifeArc;
       for (const e of this.enemies) {
         const t = targets.get(e.id);
         if (!t || !this.canHit(e, peek)) continue;
-        if (dist(ax, ay, t.bx, t.by) <= MAD.knifeArc + t.br) {
-          this.damage(e, w.damage, false, sounds);
+        const d = dist(ax, ay, t.bx, t.by);
+        const dh = dist(ax, ay, t.hx, t.hy);
+        const isHead = dh < 0.22;
+        if (d <= reachArc + t.br || dh <= reachArc + t.hr) {
+          this.damage(e, w.damage * (isHead ? w.head : 1), isHead, sounds);
           connected = true;
         }
       }
     } else {
       let hit: { e: Enemy; head: boolean; d: number } | null = null;
+      const bodyTol = w.id === 'auto' ? MAD.bodyTolerance * 1.5 : MAD.bodyTolerance;
+      const headTol = w.id === 'auto' ? MAD.headTolerance * 1.5 : MAD.headTolerance;
       for (const e of this.enemies) {
         const t = targets.get(e.id);
         if (!t || !this.canHit(e, peek)) continue;
         const dh = dist(ax, ay, t.hx, t.hy);
         const db = dist(ax, ay, t.bx, t.by);
-        if (e.vis >= MAD.headVisibility && dh <= t.hr * MAD.headTolerance + 0.012) {
+        if (e.vis >= MAD.headVisibility && dh <= t.hr * headTol + 0.015) {
           if (!hit || dh < hit.d) hit = { e, head: true, d: dh };
-        } else if (db <= t.br * MAD.bodyTolerance + 0.015) {
+        } else if (db <= t.br * bodyTol + 0.02) {
           if (!hit || db < hit.d) hit = { e, head: false, d: db };
         }
       }

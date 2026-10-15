@@ -63,11 +63,11 @@ export function CampaignMap({ engine, progress, selected, onSelect, onDeploy, on
     <div className="mad-map">
       <header className="mad-map__head">
         <div>
-          <p className="mad-eyebrow">Campaign · {cleared}/{LEVELS.length} cleared</p>
+          <p className="mad-eyebrow">Shadow Protocol · {cleared}/{LEVELS.length} cleared</p>
           <h1 className="mad-title">
-            <span>MAD</span> MOVIMIENTO
+            <span>SHADOW</span> PROTOCOL
           </h1>
-          <p className="mad-sub">MOVE · PEEK · AIM · ELIMINATE</p>
+          <p className="mad-sub">MOVE · PEEK · AIM · COMBAT</p>
         </div>
         <button type="button" className="mad-btn mad-btn--ghost" onClick={onExit}>
           ← Menu

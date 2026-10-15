@@ -37,7 +37,7 @@ interface MadScreenProps {
 const DAMAGE: Record<Difficulty, number> = { easy: 0.7, normal: 1, hard: 1.25, expert: 1.5 };
 const COUNTDOWN_STEP_MS = 700;
 
-const KEYS_IDLE: KeyState = { run: false, left: false, right: false, crouch: false, hold: false, aim: { x: 0, y: 0 }, fire: false, charge: false };
+const KEYS_IDLE: KeyState = { run: false, left: false, right: false, crouch: false, hold: false, aim: { x: 0, y: 0 }, fire: false, charge: false, cameraToggle: false };
 
 function mmss(ms: number): string {
   const s = Math.floor(ms / 1000);
@@ -52,6 +52,8 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
   const [hud, setHud] = useState<MadHud | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [result, setResult] = useState<{ r: MadResult; rec: RecordedMission } | null>(null);
+  const [cameraMode, setCameraMode] = useState<'fpp' | 'tpp'>('fpp');
+  const [cameraToast, setCameraToast] = useState<string | null>(null);
 
   const stageRef = useRef<Stage>('map');
   const sessionRef = useRef<Session | null>(null);
@@ -67,10 +69,22 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
   const hudKey = useRef('');
   const keys = useRef<{ active: boolean; state: KeyState }>({ active: false, state: { ...KEYS_IDLE, aim: { x: 0, y: 0 } } });
   const lastControls = useRef<MadControls>(NEUTRAL_CONTROLS);
+  const toastTimer = useRef<number | null>(null);
 
   const setStage = useCallback((s: Stage) => {
     stageRef.current = s;
     setStageState(s);
+  }, []);
+
+  const toggleCamera = useCallback(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    const mode = scene.toggleCameraMode();
+    setCameraMode(mode);
+    madAudio.cameraSwitch();
+    setCameraToast(mode === 'tpp' ? 'Third Person View (TPP)' : 'First Person View (FPP)');
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setCameraToast(null), 2500);
   }, []);
 
   useEffect(() => {
@@ -93,6 +107,7 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
       hudKey.current = '';
       seenSince.current = null;
       setCountdown(null);
+      setCameraMode('fpp');
       setStage('briefing');
     },
     [difficulty, setStage],
@@ -139,6 +154,7 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
         case 'ShiftLeft': s.hold = down; break;
         case 'KeyE': s.charge = down; break;
         case 'KeyF': s.fire = down; break;
+        case 'KeyV': s.cameraToggle = down; break;
         default: hit = false;
       }
       if (hit && stageRef.current !== 'map') {
@@ -183,9 +199,33 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
   const playFx = (fx: readonly FxEvent[], weaponId: string) => {
     for (const f of fx) {
       switch (f.t) {
-        case 'shot': madAudio.shot(f.weapon); break;
-        case 'hit': madAudio.hit(f.head); break;
-        case 'kill': madAudio.hit(true); break;
+        case 'shot':
+          if (weaponId === 'boxing') {
+            madAudio.punchWhoosh();
+          } else if (weaponId === 'sword') {
+            madAudio.swordSwoosh();
+          } else {
+            madAudio.shot(f.weapon);
+          }
+          break;
+        case 'hit':
+          if (weaponId === 'boxing') {
+            madAudio.punchHit(f.head);
+          } else if (weaponId === 'sword') {
+            madAudio.swordClash();
+          } else {
+            madAudio.hit(f.head);
+          }
+          break;
+        case 'kill':
+          if (weaponId === 'boxing') {
+            madAudio.punchHit(true);
+          } else if (weaponId === 'sword') {
+            madAudio.swordClash();
+          } else {
+            madAudio.hit(true);
+          }
+          break;
         case 'explosion': madAudio.explosion(weaponId === 'bomb' ? 0.25 : 0.05); break;
         case 'volley': madAudio.volley(f.blocked); break;
         case 'hurt': madAudio.hurt(); break;
@@ -207,10 +247,10 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
     const kb = keys.current.active ? keys.current.state : null;
 
     if (st === 'briefing') {
-      // Starts on its own once the player has been in view for a second.
-      const seen = (frame.trackable && frame.pose !== null) || kb !== null;
+      // Starts automatically when trackable or after keypress / user in frame.
+      const seen = frame.trackable || (frame.trackable && frame.pose !== null) || kb !== null;
       seenSince.current = seen ? (seenSince.current ?? now) : null;
-      if (seenSince.current !== null && now - seenSince.current > 1200) {
+      if (seenSince.current !== null && now - seenSince.current > 1000) {
         countdownAt.current = now;
         countdownRef.current = 3;
         setCountdown(3);
@@ -235,6 +275,16 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
     const live = stageRef.current === 'playing';
     const controls = stageRef.current === 'done' ? { ...NEUTRAL_CONTROLS, aim: lastControls.current.aim } : s.input.update(frame, dt, kb);
     lastControls.current = controls;
+
+    if (controls.cameraToggle && scene) {
+      const mode = scene.toggleCameraMode();
+      setCameraMode(mode);
+      madAudio.cameraSwitch();
+      setCameraToast(mode === 'tpp' ? 'Third Person View (TPP)' : 'First Person View (FPP)');
+      if (toastTimer.current) window.clearTimeout(toastTimer.current);
+      toastTimer.current = window.setTimeout(() => setCameraToast(null), 2500);
+    }
+
     const aspect = scene?.aspect ?? 16 / 9;
     if (live && scene) {
       const sounds = s.game.update(controls, dt, aspect, scene.targets);
@@ -289,11 +339,35 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
               <div className="mad__bar"><i style={{ transform: `scaleX(${Math.min(1, Math.max(0, hud.progress))})` }} /></div>
             </div>
             <div className="mad__right">
+              <button
+                type="button"
+                className="mad-cam-toggle"
+                onClick={toggleCamera}
+                title="Switch between FPP and TPP (Gesture: Touch temple or raise hands overhead / Key: V)"
+              >
+                🎥 {cameraMode.toUpperCase()}
+              </button>
               <div className="mad__stat"><span>Time</span><strong>{mmss(hud.timeMs)}</strong></div>
               <div className="mad__stat"><span>Score</span><strong>{hud.score.toLocaleString('en-US')}</strong></div>
               <button type="button" className="mad-btn mad-btn--ghost mad-btn--small" onClick={toMap}>✕ Abort</button>
             </div>
           </div>
+
+          <AnimatePresence>
+            {cameraToast && (
+              <motion.div
+                key={cameraToast}
+                className="mad__cam-toast"
+                initial={{ opacity: 0, y: -16, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+              >
+                <span>🎥 {cameraToast}</span>
+                <small>Gesture: Touch temple or hands up · Key: V</small>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <AnimatePresence>
             {stage === 'playing' && hud.message && (
@@ -358,7 +432,23 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
               <li><b>3</b><span><strong>{weapon.name.toUpperCase()}</strong> {weapon.how}</span></li>
             </ol>
             <div className="mad__weapon-card"><WeaponIcon id={weapon.id} size={56} /><span>{weapon.gesture}</span></div>
-            <p className="mad-hint">Step into the frame — the mission starts by itself · Keyboard: W run · A/D peek · S crouch · mouse + click</p>
+            <div style={{ margin: '14px 0 6px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <button
+                type="button"
+                className="mad-btn"
+                style={{ fontSize: '18px', padding: '12px 28px' }}
+                onClick={() => {
+                  countdownAt.current = performance.now();
+                  countdownRef.current = 3;
+                  setCountdown(3);
+                  setStage('countdown');
+                  sfx.play('tick');
+                }}
+              >
+                ▶ Start Mission
+              </button>
+            </div>
+            <p className="mad-hint">Step into the frame — the mission starts by itself · Camera: Touch temple gesture or press V (TPP/FPP) · Keyboard: W run · A/D peek · S crouch · mouse + click</p>
           </motion.div>
         )}
         {countdown !== null && (

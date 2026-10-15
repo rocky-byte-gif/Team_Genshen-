@@ -12,7 +12,6 @@ export interface Trigger {
   y: number;
 }
 
-/** Everything the game reads from the player's body each frame. */
 export interface MadControls {
   tracked: boolean;
   /** Jogging on the spot, 0 (standing) … ~1.2 (sprint). */
@@ -28,8 +27,12 @@ export interface MadControls {
   held: boolean;
   /** Scope steadiness / rocket loaded / bomb armed, 0..1. */
   charge: number;
-  /** Fire requests this frame (slash, flick, throw, push, scope lock). */
+  /** Fire requests this frame (punch, slash, flick, throw, push, scope lock). */
   triggers: Trigger[];
+  /** Gesture-based camera perspective switch (temple tap or hands up). */
+  cameraToggle: boolean;
+  /** Which hand threw a punch (for boxing / punching). */
+  punchHand: 'left' | 'right' | null;
 }
 
 /** Keyboard / mouse stand-in for the camera (testing and accessibility). */
@@ -42,9 +45,10 @@ export interface KeyState {
   aim: Trigger;
   fire: boolean;
   charge: boolean;
+  cameraToggle?: boolean;
 }
 
-export const NEUTRAL_CONTROLS: MadControls = { tracked: false, speed: 0, aim: { x: 0, y: 0 }, peek: 0, lean: 0, crouch: false, held: false, charge: 0, triggers: [] };
+export const NEUTRAL_CONTROLS: MadControls = { tracked: false, speed: 0, aim: { x: 0, y: 0 }, peek: 0, lean: 0, crouch: false, held: false, charge: 0, triggers: [], cameraToggle: false, punchHand: null };
 
 const T = {
   /** Jog: motion energy (shoulder widths per second) that counts as full speed, and the dead zone. */
@@ -54,6 +58,8 @@ const T = {
   /** Lean out of cover, in shoulder widths from the calibrated centre. */
   peekOn: 0.3,
   peekOff: 0.18,
+  punchSpeed: 2.6,
+  punchReach: 2.2,
   slash: 4.2,
   flickUp: 2.6,
   flickAimLagMs: 220,
@@ -87,12 +93,17 @@ export class MadInput {
   private aim: Trigger = { x: 0, y: 0 };
   private aimTrail: { t: number; x: number; y: number }[] = [];
   private hand: Sample[] = [];
+  private handL: Sample[] = [];
+  private handR: Sample[] = [];
   private side: 'left' | 'right' = 'right';
   private peekState: -1 | 0 | 1 = 0;
   private charge = 0;
   private armedAt = -1;
   private armedAim: Trigger = { x: 0, y: 0 };
   private lockUntil = 0;
+  private cameraToggleHold = 0;
+  private cameraToggleCooldown = 0;
+  private keyPunchAlternate = false;
 
   reset(): void {
     this.hasPrev = false;
@@ -100,8 +111,12 @@ export class MadInput {
     this.charge = 0;
     this.armedAt = -1;
     this.hand = [];
+    this.handL = [];
+    this.handR = [];
     this.aimTrail = [];
     this.lockUntil = 0;
+    this.cameraToggleHold = 0;
+    this.cameraToggleCooldown = 0;
   }
 
   update(frame: Readonly<MotionFrame>, dtMs: number, keys: KeyState | null): MadControls {
@@ -114,6 +129,7 @@ export class MadInput {
     }
     const now = frame.time;
     const triggers: Trigger[] = [];
+    let punchHand: 'left' | 'right' | null = null;
 
     // --- Jogging on the spot -------------------------------------------------
     if (frame.inferred || !this.hasPrev) {
@@ -142,6 +158,16 @@ export class MadInput {
     const r = handPoint(pose, 'right');
     const ls = lm(pose, LM.LEFT_SHOULDER);
     const rs = lm(pose, LM.RIGHT_SHOULDER);
+    const nose = lm(pose, LM.NOSE);
+
+    // Sample each hand individually for punching
+    const reachL = l ? Math.hypot(l.x - ls.x, l.y - ls.y) / body.sw : 9;
+    const reachR = r ? Math.hypot(r.x - rs.x, r.y - rs.y) / body.sw : 9;
+    this.handL.push({ t: now, hand: l ? { ...l } : null, reach: reachL });
+    this.handR.push({ t: now, hand: r ? { ...r } : null, reach: reachR });
+    while (this.handL.length > 0 && now - (this.handL[0] as Sample).t > T.histMs) this.handL.shift();
+    while (this.handR.length > 0 && now - (this.handR[0] as Sample).t > T.histMs) this.handR.shift();
+
     // The raised hand aims (it sticks until the other is clearly higher).
     if (l && r) {
       if (this.side === 'right' && l.y < r.y - 0.3 * body.sw) this.side = 'left';
@@ -155,7 +181,6 @@ export class MadInput {
     while (this.hand.length > 0 && now - (this.hand[0] as Sample).t > T.histMs) this.hand.shift();
 
     // Where the hand points, in screen units.
-    const nose = lm(pose, LM.NOSE);
     const both = l && r ? { x: (l.x + r.x) / 2, y: (l.y + r.y) / 2 } : null;
     let target: Trigger | null = null;
     if (this.style === 'scope' && hand && nose.v > 0.4) {
@@ -190,6 +215,39 @@ export class MadInput {
     // --- Weapon gestures -----------------------------------------------------
     let held = false;
     switch (this.style) {
+      case 'punch': {
+        const oldL = this.sampleAgoL(now, 90);
+        const oldR = this.sampleAgoR(now, 90);
+        const curL = this.handL[this.handL.length - 1];
+        const curR = this.handR[this.handR.length - 1];
+        const dtL = oldL && curL ? (curL.t - oldL.t) / 1000 : 0;
+        const dtR = oldR && curR ? (curR.t - oldR.t) / 1000 : 0;
+
+        let vL = 0;
+        let vReachL = 0;
+        if (oldL && curL && dtL > 0.02 && oldL.hand && curL.hand) {
+          vL = Math.hypot(curL.hand.x - oldL.hand.x, curL.hand.y - oldL.hand.y) / dtL / body.sw;
+          vReachL = (curL.reach - oldL.reach) / dtL;
+        }
+
+        let vR = 0;
+        let vReachR = 0;
+        if (oldR && curR && dtR > 0.02 && oldR.hand && curR.hand) {
+          vR = Math.hypot(curR.hand.x - oldR.hand.x, curR.hand.y - oldR.hand.y) / dtR / body.sw;
+          vReachR = (curR.reach - oldR.reach) / dtR;
+        }
+
+        if (!locked) {
+          const punchL = (vL >= T.punchSpeed || vReachL >= T.punchReach) && curL && curL.reach > 0.72;
+          const punchR = (vR >= T.punchSpeed || vReachR >= T.punchReach) && curR && curR.reach > 0.72;
+          if (punchL || punchR) {
+            triggers.push({ x: this.aim.x, y: this.aim.y });
+            punchHand = punchL && (!punchR || vL >= vR) ? 'left' : 'right';
+            this.lockUntil = now + 180;
+          }
+        }
+        break;
+      }
       case 'slash':
         if (!locked && hand && speedHand >= T.slash) {
           triggers.push({ x: this.aim.x, y: this.aim.y });
@@ -241,14 +299,33 @@ export class MadInput {
           this.charge = 0;
           this.lockUntil = now + 800;
         } else if (this.charge >= 1 && !shouldered && reach > 1.6) {
-          // Dropped the load without pushing.
           this.charge = 0;
         }
         break;
       }
     }
 
-    return { tracked: true, speed, aim: { x: this.aim.x, y: this.aim.y }, peek, lean: clamp(lean / 0.55, -1, 1), crouch, held, charge: this.charge, triggers };
+    // --- Camera Perspective Toggle Gesture (Temple touch or hands raised) ---
+    let cameraToggle = false;
+    const templeTouch = !!nose && nose.v > 0.35 && (
+      (l && Math.abs(l.y - nose.y) < 0.45 * body.sw && Math.abs(l.x - nose.x) < 0.85 * body.sw) ||
+      (r && Math.abs(r.y - nose.y) < 0.45 * body.sw && Math.abs(r.x - nose.x) < 0.85 * body.sw)
+    );
+    const handsUp = !!l && !!r && l.y < ls.y - 0.45 * body.sw && r.y < rs.y - 0.45 * body.sw;
+    const isToggleGesture = templeTouch || handsUp;
+
+    if (isToggleGesture) {
+      this.cameraToggleHold += dtMs;
+      if (this.cameraToggleHold >= 300 && now >= this.cameraToggleCooldown) {
+        cameraToggle = true;
+        this.cameraToggleCooldown = now + 1400;
+        this.cameraToggleHold = 0;
+      }
+    } else {
+      this.cameraToggleHold = Math.max(0, this.cameraToggleHold - dtMs * 2);
+    }
+
+    return { tracked: true, speed, aim: { x: this.aim.x, y: this.aim.y }, peek, lean: clamp(lean / 0.55, -1, 1), crouch, held, charge: this.charge, triggers, cameraToggle, punchHand };
   }
 
   /** Keyboard / mouse version: the same controls without the camera. */
@@ -257,13 +334,17 @@ export class MadInput {
     this.aim.x += (k.aim.x - this.aim.x) * k1;
     this.aim.y += (k.aim.y - this.aim.y) * k1;
     const triggers: Trigger[] = [];
+    let punchHand: 'left' | 'right' | null = null;
     if (k.fire && now >= this.lockUntil) {
       triggers.push({ x: this.aim.x, y: this.aim.y });
+      punchHand = this.keyPunchAlternate ? 'left' : 'right';
+      this.keyPunchAlternate = !this.keyPunchAlternate;
       this.lockUntil = now + 120;
     }
     this.charge = k.charge ? Math.min(1, this.charge + dtMs / 600) : Math.max(0, this.charge - dtMs / 300);
     const peek: -1 | 0 | 1 = k.left ? -1 : k.right ? 1 : 0;
-    return { tracked: true, speed: k.run ? 1 : 0, aim: { ...this.aim }, peek, lean: peek, crouch: k.crouch, held: k.hold, charge: this.charge, triggers };
+    const cameraToggle = !!k.cameraToggle;
+    return { tracked: true, speed: k.run ? 1 : 0, aim: { ...this.aim }, peek, lean: peek, crouch: k.crouch, held: k.hold, charge: this.charge, triggers, cameraToggle, punchHand };
   }
 
   private sampleAgo(now: number, ms: number): Sample | null {
@@ -272,6 +353,22 @@ export class MadInput {
       if (now - s.t >= ms) return s;
     }
     return this.hand[0] ?? null;
+  }
+
+  private sampleAgoL(now: number, ms: number): Sample | null {
+    for (let i = this.handL.length - 1; i >= 0; i--) {
+      const s = this.handL[i] as Sample;
+      if (now - s.t >= ms) return s;
+    }
+    return this.handL[0] ?? null;
+  }
+
+  private sampleAgoR(now: number, ms: number): Sample | null {
+    for (let i = this.handR.length - 1; i >= 0; i--) {
+      const s = this.handR[i] as Sample;
+      if (now - s.t >= ms) return s;
+    }
+    return this.handR[0] ?? null;
   }
 
   private aimAgo(now: number, ms: number): Trigger {

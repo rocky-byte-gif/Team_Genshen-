@@ -2,6 +2,8 @@ import type { WeaponId } from '../../features/mad/weapons';
 
 /** Flat weapon silhouettes (the deck's weapon icons), drawn on a 64×32 grid. */
 const SHAPES: Record<WeaponId, string> = {
+  boxing: 'M10 25 L10 15 L16 15 L18 10 C22 7, 36 6, 48 10 C54 13, 56 19, 54 24 C50 28, 36 29, 22 27 L18 25 Z M24 14 C27 9, 36 9, 38 14 C36 17, 30 18, 24 14 Z',
+  sword: 'M4 17 L14 17 L14 12 L17 12 L17 15 L58 15 L62 17 L58 19 L17 19 L17 22 L14 22 L14 17 Z M8 15 H12 V19 H8 Z',
   knife: 'M6 22 L40 10 L50 12 L42 18 L14 26 Z M4 22 L14 26 L12 29 L3 25 Z',
   pistol: 'M12 10 H44 V16 H30 L28 28 H20 L22 16 H12 Z',
   deagle: 'M8 9 H50 V16 H34 L32 28 H24 L26 16 H8 Z M50 10 H56 V14 H50 Z',

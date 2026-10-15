@@ -96,7 +96,7 @@ export function BootScreen({ onDone }: { onDone: () => void }) {
   return (
     <motion.div className="boot" exit={{ opacity: 0 }} transition={{ duration: 0.4, ease: 'easeOut' }}>
       <div className="boot__logo">
-        MOTION<span>//</span>RUSH
+        MAD<span>//</span>MOVIMIENTO
       </div>
       <p className="boot__tagline">The game where the controller is you</p>
       <div className="boot__bar" role="progressbar" aria-label="Loading" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>

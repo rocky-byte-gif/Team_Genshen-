@@ -9,8 +9,9 @@ import { clamp } from '../../lib/math/geometry';
 import { createRng } from '../gameplay/course';
 import type { CoverKind, LevelDef, ThemeId } from './levels';
 import type { Enemy, FxEvent, MadGame, Target } from './MadGame';
+import { buildHumanoid, type HumanoidRig, type HumanoidRole } from './humanoidRig';
 import type { MadControls } from './madInput';
-import { asphaltTexture, buildSoldier, buildViewModel, canvasTexture, concreteTexture, facadeTextures, ParticlePool, scaleUV, softSprite, type SoldierRig, type ViewModel } from './sceneKit';
+import { asphaltTexture, buildViewModel, canvasTexture, concreteTexture, facadeTextures, ParticlePool, scaleUV, softSprite, type ViewModel } from './sceneKit';
 import type { WeaponDef } from './weapons';
 
 interface Theme {
@@ -103,6 +104,8 @@ void main() {
 };
 
 const VIEW_OFFSETS: Record<string, { p: [number, number, number]; r: [number, number, number] }> = {
+  boxing: { p: [0, -0.05, -0.1], r: [0, 0, 0] },
+  sword: { p: [0.15, -0.12, -0.2], r: [0.1, 0.2, -0.15] },
   knife: { p: [0.26, -0.24, -0.52], r: [0.25, 0.35, -0.35] },
   pistol: { p: [0.22, -0.25, -0.56], r: [0, 0.03, 0] },
   deagle: { p: [0.22, -0.25, -0.56], r: [0, 0.03, 0] },
@@ -115,7 +118,7 @@ const VIEW_OFFSETS: Record<string, { p: [number, number, number]; r: [number, nu
 
 interface EnemyVisual {
   enemy: Enemy;
-  rig: SoldierRig;
+  rig: HumanoidRig;
   flashT: number;
   fall: number;
 }
@@ -135,6 +138,8 @@ const ndc = new THREE.Vector2();
 export class MadScene {
   readonly targets = new Map<number, Target>();
   aspect = 16 / 9;
+  cameraMode: 'fpp' | 'tpp' = 'fpp';
+  private readonly playerRig: HumanoidRig;
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(62, 16 / 9, 0.05, 700);
@@ -253,11 +258,23 @@ export class MadScene {
     this.camera.add(this.muzzleLight);
     this.scene.add(this.blastLight, this.sparks.points, this.smoke.points, this.motes.points);
     if (th.rain) this.buildRain();
+    this.playerRig = buildHumanoid('player');
+    this.playerRig.root.visible = false;
+    this.scene.add(this.playerRig.root);
 
     this.setQuality(quality);
     this.observer = new ResizeObserver(() => this.fit());
     this.observer.observe(canvas);
     this.fit();
+  }
+
+  toggleCameraMode(): 'fpp' | 'tpp' {
+    this.cameraMode = this.cameraMode === 'fpp' ? 'tpp' : 'fpp';
+    return this.cameraMode;
+  }
+
+  setCameraMode(mode: 'fpp' | 'tpp'): void {
+    this.cameraMode = mode;
   }
 
   // --- Setup ---------------------------------------------------------------
@@ -494,9 +511,10 @@ export class MadScene {
     const stripeMat = new THREE.MeshStandardMaterial({ map: stripe, roughness: 0.6 });
     const heights: Record<CoverKind, number> = { barrier: 1, crate: 1.1, wall: 1.35 };
     this.rigs.length = 0;
+    const role: HumanoidRole = this.weapon.id === 'boxing' ? 'boxer' : this.weapon.id === 'sword' ? 'swordmaster' : 'soldier';
     for (const spec of this.level.enemies) {
       const x = spec.lane * 4.2 + (spec.dx ?? 0);
-      const rig = buildSoldier(!!spec.heavy, this.flashTex);
+      const rig = buildHumanoid(role);
       rig.root.position.set(x, 0, this.enemyZ);
       rig.root.rotation.y = Math.atan2(-x, this.runLen);
       this.scene.add(rig.root);
@@ -520,7 +538,7 @@ export class MadScene {
     }
   }
 
-  private readonly rigs: SoldierRig[] = [];
+  private readonly rigs: HumanoidRig[] = [];
 
   /** Links the scene's soldiers to the game's enemy state (once the game exists). */
   bind(game: MadGame): void {
@@ -620,10 +638,27 @@ export class MadScene {
     this.shake = Math.max(0, this.shake - dt * 2.4);
     const shx = (Math.random() - 0.5) * this.shake * 0.08;
     const shy = (Math.random() - 0.5) * this.shake * 0.08;
-    const baseY = 1.62 - game.coverAmt * 0.62 - Math.abs(game.peekAmt) * 0.1;
-    this.camera.position.set(game.peekAmt * 1.15 + sway + shx, baseY + bob + shy, -game.distance);
-    this.camera.rotation.order = 'YXZ';
-    this.camera.rotation.set(c.aim.y * 0.05 + this.shake * (Math.random() - 0.5) * 0.02 - this.kick * 0.012, -c.aim.x * 0.07 - game.peekAmt * 0.045, -game.peekAmt * 0.06 + sway * 0.3);
+
+    const isTpp = this.cameraMode === 'tpp';
+    if (isTpp) {
+      // Third-Person Perspective (TPP): camera positioned behind player looking forward
+      const tppDist = 2.2;
+      const tppHeight = 1.85 - game.coverAmt * 0.45;
+      this.camera.position.set(game.peekAmt * 0.85 + sway * 0.6 + shx, tppHeight + bob * 0.5 + shy, -game.distance + tppDist);
+      this.camera.rotation.order = 'YXZ';
+      this.camera.rotation.set(-0.06 + c.aim.y * 0.04, -c.aim.x * 0.07 - game.peekAmt * 0.035, -game.peekAmt * 0.04);
+      this.viewRoot.visible = false;
+      this.playerRig.root.visible = true;
+      this.playerRig.root.position.set(0, 0, -game.distance);
+      this.playerRig.updateAsPlayer(c, w.id, dt * 1000);
+    } else {
+      // First-Person Perspective (FPP): camera positioned at player eye-level
+      this.playerRig.root.visible = false;
+      const baseY = 1.62 - game.coverAmt * 0.62 - Math.abs(game.peekAmt) * 0.1;
+      this.camera.position.set(game.peekAmt * 1.15 + sway + shx, baseY + bob + shy, -game.distance);
+      this.camera.rotation.order = 'YXZ';
+      this.camera.rotation.set(c.aim.y * 0.05 + this.shake * (Math.random() - 0.5) * 0.02 - this.kick * 0.012, -c.aim.x * 0.07 - game.peekAmt * 0.045, -game.peekAmt * 0.06 + sway * 0.3);
+    }
     const wantScope = w.style === 'scope' && c.charge > 0.04 ? 1 : 0;
     this.scopeAmt += (wantScope - this.scopeAmt) * (1 - Math.exp(-dt / 0.12));
     const targetFov = THREE.MathUtils.lerp(62, w.fov, w.style === 'scope' ? this.scopeAmt : 1);
@@ -688,34 +723,18 @@ export class MadScene {
     for (const v of this.visuals) {
       const e = v.enemy;
       const { rig } = v;
-      const sway = Math.sin(this.time * 1.6 + e.id) * 0.02;
-      const down = (1 - e.shown) * 1.6;
-      let rotX = 0;
-      let dropY = 0;
-      if (e.state === 'dead') {
-        v.fall = Math.min(1, v.fall + dt / 0.28);
-        rotX = -v.fall * 1.35;
-        dropY = v.fall * 0.25;
-      } else v.fall = 0;
-      rig.body.position.y = -down - dropY;
-      rig.body.rotation.x = rotX;
-      rig.body.rotation.z = sway;
-      rig.body.visible = e.shown > 0.01;
+      rig.updateAsOpponent(e, this.weapon.id, this.time * 1000, dt * 1000);
       const aiming = e.state === 'aiming';
       rig.marker.visible = aiming;
       if (aiming) {
         const pulse = 1 + 0.3 * Math.sin(this.time * 18);
         rig.marker.scale.setScalar(pulse);
-        rig.marker.position.y = (e.spec.heavy ? 2.45 : 2.15) + Math.sin(this.time * 9) * 0.05;
+        rig.marker.position.y = 2.15 + Math.sin(this.time * 9) * 0.05;
         rig.marker.rotation.y = this.time * 3;
       }
       v.flashT = Math.max(0, v.flashT - dt);
       rig.flash.visible = v.flashT > 0;
       if (v.flashT > 0) rig.flash.scale.setScalar(0.6 + Math.random() * 0.6);
-      const f = e.hitFlash;
-      for (const m of rig.mats) m.emissive.setRGB(f * 0.9, f * 0.22, f * 0.1);
-      const gm = rig.goggles.material as THREE.MeshBasicMaterial;
-      gm.color.setHex(aiming ? 0xff0000 : e.spec.heavy ? 0xff2a2a : 0xff6a2a).multiplyScalar(aiming ? 3 : 1.4);
     }
     void game;
   }
@@ -725,20 +744,23 @@ export class MadScene {
     const tanHalf = Math.tan((this.camera.fov * Math.PI) / 360);
     for (const v of this.visuals) {
       const e = v.enemy;
-      const s = e.spec.heavy ? 1.14 : 1;
       const off = v.rig.body.position.y;
       const d = Math.max(1, camZ - e.z);
       const halfH = d * tanHalf;
-      tmp.set(e.x, 1.4 * s + off, e.z).project(this.camera);
+      tmp.set(e.x, 1.35 + off, e.z).project(this.camera);
       const bx = tmp.x * this.aspect;
       const by = tmp.y;
-      tmp.set(e.x, 1.7 * s + off, e.z).project(this.camera);
-      this.targets.set(e.id, { bx, by, br: (0.34 * s) / halfH, hx: tmp.x * this.aspect, hy: tmp.y, hr: (0.15 * s) / halfH });
+      tmp.set(e.x, 1.7 + off, e.z).project(this.camera);
+      this.targets.set(e.id, { bx, by, br: 0.34 / halfH, hx: tmp.x * this.aspect, hy: tmp.y, hr: 0.16 / halfH });
     }
     void game;
   }
 
   private updateViewModel(game: MadGame, c: MadControls, dt: number): void {
+    if (this.cameraMode === 'tpp') {
+      this.viewRoot.visible = false;
+      return;
+    }
     const w = this.weapon;
     const vo = VIEW_OFFSETS[w.id] ?? { p: [0.22, -0.25, -0.56] as [number, number, number], r: [0, 0, 0] as [number, number, number] };
     this.kick = Math.max(0, this.kick - dt * 7);

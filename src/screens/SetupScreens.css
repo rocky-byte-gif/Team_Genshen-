@@ -79,6 +79,66 @@
   gap: 6px;
 }
 
+.notice__address-tip {
+  width: 100%;
+  max-width: 520px;
+  background: rgba(46, 230, 255, 0.08);
+  border: 1px solid rgba(46, 230, 255, 0.35);
+  border-radius: var(--radius-m);
+  padding: 14px 18px;
+  text-align: left;
+  margin: 6px 0;
+}
+
+.notice__tip-header {
+  color: var(--cyan);
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+
+.notice__tip-steps {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 14px;
+  color: var(--text-1);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  line-height: 1.45;
+}
+
+.notice__tip-steps code {
+  background: rgba(255, 255, 255, 0.12);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 13px;
+}
+
+.notice__guide {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-2);
+  padding-left: 20px;
+}
+
+.notice__guide p {
+  margin: 8px 0 4px;
+  color: var(--text-1);
+}
+
+.notice__guide ul {
+  margin: 0 0 6px;
+  padding-left: 20px;
+}
+
+.notice__guide code {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 5px;
+  border-radius: 3px;
+  color: #fff;
+}
+
 /* ── Shared setup layout: big viewport + side panel ── */
 .setup {
   display: grid;

@@ -22,8 +22,8 @@ function runToCombat(game: MadGame): void {
 describe('campaign data', () => {
   it('has eight missions, one weapon each, in the deck order', () => {
     expect(LEVELS).toHaveLength(8);
-    expect(LEVELS.map((l) => l.weapon)).toEqual(WEAPONS.map((w) => w.id));
-    expect(WEAPONS.map((w) => w.name)).toEqual(['Knife', 'Pistol', 'Desert Eagle', 'Rifle', 'Automatic', 'Sniper', 'Bomb', 'Rocket Launcher']);
+    expect(LEVELS.map((l) => l.weapon)).toEqual(WEAPONS.slice(0, 8).map((w) => w.id));
+    expect(WEAPONS.slice(0, 8).map((w) => w.name)).toEqual(['Boxing Gloves', 'Katana Blade', 'Automatic Rifle', 'Desert Eagle', 'Tactical Rifle', 'Sniper', 'Bomb', 'Rocket Launcher']);
   });
 });
 
@@ -43,7 +43,7 @@ describe('MadGame', () => {
     expect(game.time).toBe(0);
   });
 
-  it('clears a mission with the knife and rates it', () => {
+  it('clears a mission with boxing and rates it', () => {
     const game = new MadGame(LEVELS[0]!);
     runToCombat(game);
     for (let i = 0; i < 2500 && !game.done; i++) {
@@ -56,7 +56,7 @@ describe('MadGame', () => {
     expect(game.phase).toBe('cleared');
     const r = game.result();
     expect(r.cleared).toBe(true);
-    expect(r.kills).toBe(3);
+    expect(r.kills).toBe(1);
     expect(['S', 'A', 'B', 'C']).toContain(r.rating);
     expect(r.score).toBeGreaterThan(300);
   });

@@ -14,9 +14,9 @@ export function TopBar({ phase, muted, onToggleMute, onHome }: TopBarProps) {
 
   return (
     <header className={`topbar ${phase === 'game' ? 'topbar--game' : ''}`}>
-      <button type="button" className="brand" onClick={onHome} aria-label="MOTION//RUSH — home">
+      <button type="button" className="brand" onClick={onHome} aria-label="Mad Movimiento — home">
         <span className="brand__mark" aria-hidden="true" />
-        MOTION<span className="brand__slash">//</span>RUSH
+        MAD<span className="brand__slash">//</span>MOVIMIENTO
       </button>
       {showSteps && (
         <ol className="steps" aria-label="Setup steps">

@@ -276,6 +276,19 @@ export class MotionEngine {
     }
   }
 
+  /** Runs the engine in keyboard/mouse mode without requiring webcam access. */
+  startKeyboardMode(): void {
+    if (this.disposed) return;
+    this.ui.set({ camera: 'live', cameraError: null, model: 'ready', scheme: 'body' });
+    this.frame.trackable = true;
+    this.frame.aspect = 16 / 9;
+    this.frame.videoWidth = 640;
+    this.frame.videoHeight = 360;
+    if (!this.raf) {
+      this.raf = requestAnimationFrame(this.tick);
+    }
+  }
+
   setBaseline(baseline: Baseline | null): void {
     this.frame.baseline = baseline
       ? {

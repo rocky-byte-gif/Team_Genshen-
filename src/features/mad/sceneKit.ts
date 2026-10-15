@@ -424,6 +424,46 @@ export function buildViewModel(id: WeaponId): ViewModel {
   const muzzle = new THREE.Object3D();
   group.add(muzzle);
   switch (id) {
+    case 'boxing': {
+      // First-person boxing gloves in guard position
+      const redGlove = new THREE.MeshStandardMaterial({ color: 0xd90429, roughness: 0.35, metalness: 0.2 });
+      const laceMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
+      // Right glove (dominant)
+      const rGlove = new THREE.Mesh(new THREE.SphereGeometry(0.08, 14, 12), redGlove);
+      rGlove.scale.set(1.0, 1.25, 0.95);
+      rGlove.position.set(0.16, -0.16, -0.38);
+      group.add(rGlove);
+      // Left glove
+      const lGlove = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 12), redGlove);
+      lGlove.scale.set(1.0, 1.25, 0.95);
+      lGlove.position.set(-0.16, -0.18, -0.42);
+      group.add(lGlove);
+      // Laces / wrist cuffs
+      const rCuff = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.06, 12), laceMat);
+      rCuff.position.set(0.16, -0.22, -0.36);
+      group.add(rCuff);
+      const lCuff = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.06, 12), laceMat);
+      lCuff.position.set(-0.16, -0.24, -0.4);
+      group.add(lCuff);
+      muzzle.position.set(0, 0, -0.45);
+      break;
+    }
+    case 'sword': {
+      // First-person Katana held at diagonal ready angle
+      const bladeMat = new THREE.MeshStandardMaterial({ color: 0xe6edf3, roughness: 0.15, metalness: 0.95 });
+      const tsubaMat = new THREE.MeshStandardMaterial({ color: 0xb8860b, roughness: 0.4, metalness: 0.8 });
+      const handleMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.85 });
+      // Blade
+      box(0.012, 0.038, 0.72, bladeMat, 0.12, -0.06, -0.48, 0.15);
+      // Tsuba (crossguard)
+      cyl(0.05, 0.012, tsubaMat, 0.12, -0.15, -0.15);
+      // Handle (tsuka)
+      cyl(0.024, 0.22, handleMat, 0.12, -0.22, -0.04);
+      // Gloved hand gripping hilt
+      box(0.08, 0.08, 0.12, glove, 0.12, -0.21, -0.04);
+      muzzle.position.set(0.12, 0, -0.8);
+      break;
+    }
     case 'knife':
       box(0.035, 0.05, 0.14, grip, 0, 0, 0.05);
       box(0.012, 0.055, 0.36, steel, 0, 0.01, -0.2);

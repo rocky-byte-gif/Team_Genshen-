@@ -144,6 +144,14 @@ export function App() {
     startCamera();
   }, [startCamera]);
 
+  const onPlayKeyboard = useCallback(() => {
+    sfx.unlock();
+    const next = new MotionEngine();
+    replaceEngine(next);
+    next.startKeyboardMode();
+    dispatch({ type: 'KEYBOARD_PLAY' });
+  }, [replaceEngine]);
+
   const onCameraFail = useCallback((kind: CameraErrorKind) => dispatch({ type: 'CAMERA_FAILED', kind }), []);
   const onCheckPassed = useCallback(() => dispatch({ type: 'CHECK_PASSED' }), []);
   const onCalibrated = useCallback(() => dispatch({ type: 'CALIBRATED' }), []);
@@ -304,10 +312,10 @@ export function App() {
       screen = <LeaderboardScreen profile={profile} initialMode={flow.mode} onBack={onBack} />;
       break;
     case 'permission':
-      screen = <PermissionScreen />;
+      screen = <PermissionScreen onRequestAgain={onRetry} onPlayKeyboard={onPlayKeyboard} onBack={onModes} />;
       break;
     case 'camera-error':
-      screen = <CameraErrorScreen kind={flow.errorKind ?? 'unknown'} onRetry={onRetry} />;
+      screen = <CameraErrorScreen kind={flow.errorKind ?? 'unknown'} onRetry={onRetry} onPlayKeyboard={onPlayKeyboard} />;
       break;
     case 'check':
       if (engine) screen = <CameraCheckScreen engine={engine} onReady={onCheckPassed} />;

@@ -7,9 +7,10 @@ import './SetupScreens.css';
 interface CameraErrorScreenProps {
   kind: CameraErrorKind;
   onRetry: () => void;
+  onPlayKeyboard?: () => void;
 }
 
-export function CameraErrorScreen({ kind, onRetry }: CameraErrorScreenProps) {
+export function CameraErrorScreen({ kind, onRetry, onPlayKeyboard }: CameraErrorScreenProps) {
   const [showFix, setShowFix] = useState(false);
   const copy = CAMERA_ERROR_COPY[kind];
 
@@ -25,13 +26,34 @@ export function CameraErrorScreen({ kind, onRetry }: CameraErrorScreenProps) {
         <p className="t-label notice__eyebrow">Camera not available</p>
         <h1 className="t-headline">{copy.title}</h1>
         <p className="notice__text">{copy.message}</p>
-        <div className="notice__actions">
-          <button type="button" className="btn btn--primary" onClick={onRetry}>
-            Try again
-          </button>
-          <button type="button" className="btn btn--ghost" aria-expanded={showFix} onClick={() => setShowFix((v) => !v)}>
-            How to fix
-          </button>
+        <div className="notice__actions" style={{ flexDirection: 'column', width: '100%', maxWidth: '420px', gap: '10px' }}>
+          {onPlayKeyboard && (
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={onPlayKeyboard}
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, #00f0ff, #0072ff)',
+                color: '#060a12',
+                fontWeight: 700,
+                fontSize: '17px',
+                padding: '14px 24px',
+                boxShadow: '0 0 28px rgba(0, 240, 255, 0.4)',
+                border: 'none',
+              }}
+            >
+              🎮 Play with Keyboard &amp; Mouse
+            </button>
+          )}
+          <div style={{ display: 'flex', gap: '10px', width: '100%', justifyContent: 'center' }}>
+            <button type="button" className="btn btn--ghost" onClick={onRetry}>
+              Try camera again
+            </button>
+            <button type="button" className="btn btn--ghost" aria-expanded={showFix} onClick={() => setShowFix((v) => !v)}>
+              How to fix
+            </button>
+          </div>
         </div>
         <AnimatePresence initial={false}>
           {showFix && (

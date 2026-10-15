@@ -56,6 +56,7 @@ export type FlowAction =
   | { type: 'DUEL_START'; seed: number }
   | { type: 'GAME_OVER'; result: SessionResult }
   | { type: 'PLAY_AGAIN' }
+  | { type: 'KEYBOARD_PLAY' }
   | { type: 'MENU' }
   | { type: 'RECALIBRATE' }
   | { type: 'LEADERBOARD' }
@@ -98,6 +99,8 @@ export function flowReducer(state: FlowState, action: FlowAction): FlowState {
     case 'PLAY':
       if (state.ready) return launch(state, action.mode);
       return setup({ ...state, mode: action.mode }, 'play', action.cameraOn);
+    case 'KEYBOARD_PLAY':
+      return launch({ ...state, ready: true }, state.mode);
     case 'TUTORIAL':
       if (state.ready) return { ...state, phase: 'tutorial', after: 'menu' };
       return setup(state, 'tutorial', action.cameraOn);
