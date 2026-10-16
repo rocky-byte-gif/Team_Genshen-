@@ -41,7 +41,7 @@ function createDetailedHead(skinMat: THREE.Material, hairMat: THREE.Material, ro
   const headGroup = new THREE.Group();
 
   // Cranium and jaw: anatomical shaped head
-  const cranium = new THREE.Mesh(new THREE.SphereGeometry(0.125, 20, 16), skinMat);
+  const cranium = new THREE.Mesh(new THREE.SphereGeometry(0.125, 12, 10), skinMat);
   cranium.scale.set(0.92, 1.15, 0.98);
   cranium.position.set(0, 0, 0);
   cranium.castShadow = true;
@@ -53,7 +53,7 @@ function createDetailedHead(skinMat: THREE.Material, hairMat: THREE.Material, ro
   headGroup.add(jaw);
 
   // Nose
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.024, 0.065, 8), skinMat);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.024, 0.065, 6), skinMat);
   nose.rotation.x = -Math.PI / 2.3;
   nose.position.set(0, -0.01, 0.13);
   headGroup.add(nose);
@@ -231,7 +231,7 @@ export function buildHumanoid(role: HumanoidRole): HumanoidRig {
     armGroup.add(deltoid);
 
     // Biceps / Upper Arm (anatomical muscular cylinder)
-    const upperArmMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.052, 0.26, 12), skinMat);
+    const upperArmMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.052, 0.26, 8), skinMat);
     upperArmMesh.position.set(0, -0.13, 0);
     upperArmMesh.castShadow = true;
     armGroup.add(upperArmMesh);
@@ -241,11 +241,11 @@ export function buildHumanoid(role: HumanoidRole): HumanoidRig {
     forearmGroup.position.set(0, -0.26, 0);
     armGroup.add(forearmGroup);
 
-    const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.052, 10, 8), skinMat);
+    const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.052, 8, 6), skinMat);
     forearmGroup.add(elbow);
 
     // Forearm
-    const forearmMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.044, 0.24, 12), skinMat);
+    const forearmMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.044, 0.24, 8), skinMat);
     forearmMesh.position.set(0, -0.12, 0);
     forearmMesh.castShadow = true;
     forearmGroup.add(forearmMesh);
@@ -256,19 +256,19 @@ export function buildHumanoid(role: HumanoidRole): HumanoidRig {
     forearmGroup.add(handGroup);
 
     // Realistic padded boxing glove
-    const gloveMain = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 12), gloveMat);
+    const gloveMain = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), gloveMat);
     gloveMain.scale.set(1.0, 1.25, 0.9);
     gloveMain.castShadow = true;
     handGroup.add(gloveMain);
     boxingGloves.push(gloveMain);
 
     // Thumb wrap on glove
-    const thumbWrap = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 8), gloveMat);
+    const thumbWrap = new THREE.Mesh(new THREE.SphereGeometry(0.038, 8, 6), gloveMat);
     thumbWrap.position.set(sign * 0.045, -0.02, 0.03);
     handGroup.add(thumbWrap);
 
     // Wrist cuff
-    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.05, 12), trimMat);
+    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.05, 8), trimMat);
     cuff.position.set(0, 0.04, 0);
     handGroup.add(cuff);
 
@@ -286,7 +286,7 @@ export function buildHumanoid(role: HumanoidRole): HumanoidRig {
     body.add(legGroup);
 
     // Thigh with athletic pants
-    const thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.072, 0.42, 12), pantsMat);
+    const thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.072, 0.42, 8), pantsMat);
     thigh.position.set(0, -0.21, 0);
     thigh.castShadow = true;
     legGroup.add(thigh);
@@ -296,11 +296,11 @@ export function buildHumanoid(role: HumanoidRole): HumanoidRig {
     calfGroup.position.set(0, -0.42, 0);
     legGroup.add(calfGroup);
 
-    const knee = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), skinMat);
+    const knee = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), skinMat);
     calfGroup.add(knee);
 
     // Calf (lower leg)
-    const calf = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.052, 0.38, 12), skinMat);
+    const calf = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.052, 0.38, 8), skinMat);
     calf.position.set(0, -0.19, 0);
     calf.castShadow = true;
     calfGroup.add(calf);
@@ -408,26 +408,47 @@ export function buildHumanoid(role: HumanoidRole): HumanoidRig {
 
     // Arm positioning based on active weapon
     if (weapon === 'boxing') {
-      // Guard stance: elbows in, gloves protecting chin
+      // Body posture reaction to dodge
+      if (controls.isDodging) {
+        chest.rotation.z = -controls.lean * 0.4;
+        chest.rotation.x = controls.crouch ? 0.28 : 0;
+      }
+
       const punchExt = Math.sin(punchAnimT * Math.PI);
 
-      if (activePunchSide === 'left' && punchAnimT > 0) {
-        // Left arm extends full punch
-        leftArmRig.armGroup.rotation.set(-1.45, 0, 0.1);
-        leftArmRig.forearmGroup.rotation.set(-punchExt * 0.4, 0, 0);
-        leftArmRig.armGroup.position.z = -punchExt * 0.35;
-      } else {
+      if (controls.isBlocking) {
+        // High Peekaboo Guard: Both gloves held high in front of face
+        leftArmRig.armGroup.rotation.set(-1.35, 0.45, 0.6);
+        leftArmRig.forearmGroup.rotation.set(-1.45, 0, 0);
+        leftArmRig.armGroup.position.z = -0.15;
+
+        rightArmRig.armGroup.rotation.set(-1.35, -0.45, -0.6);
+        rightArmRig.forearmGroup.rotation.set(-1.45, 0, 0);
+        rightArmRig.armGroup.position.z = -0.15;
+      } else if (activePunchSide === 'left' && punchAnimT > 0) {
+        // Left arm extends punch / jab
+        leftArmRig.armGroup.rotation.set(-1.45, 0.05, 0.1);
+        leftArmRig.forearmGroup.rotation.set(-punchExt * 0.45, 0, 0);
+        leftArmRig.armGroup.position.z = -punchExt * 0.42;
+
+        rightArmRig.armGroup.rotation.set(-1.1, -0.3, -0.4);
+        rightArmRig.forearmGroup.rotation.set(-1.2, 0, 0);
+        rightArmRig.armGroup.position.z = 0;
+      } else if (activePunchSide === 'right' && punchAnimT > 0) {
+        // Right arm extends heavy power punch
+        rightArmRig.armGroup.rotation.set(-1.45, -0.05, -0.1);
+        rightArmRig.forearmGroup.rotation.set(-punchExt * 0.45, 0, 0);
+        rightArmRig.armGroup.position.z = -punchExt * 0.45;
+
         leftArmRig.armGroup.rotation.set(-1.1, 0.3, 0.4);
         leftArmRig.forearmGroup.rotation.set(-1.2, 0, 0);
         leftArmRig.armGroup.position.z = 0;
-      }
-
-      if (activePunchSide === 'right' && punchAnimT > 0) {
-        // Right arm extends full punch
-        rightArmRig.armGroup.rotation.set(-1.45, 0, -0.1);
-        rightArmRig.forearmGroup.rotation.set(-punchExt * 0.4, 0, 0);
-        rightArmRig.armGroup.position.z = -punchExt * 0.35;
       } else {
+        // Standard boxing guard
+        leftArmRig.armGroup.rotation.set(-1.1, 0.3, 0.4);
+        leftArmRig.forearmGroup.rotation.set(-1.2, 0, 0);
+        leftArmRig.armGroup.position.z = 0;
+
         rightArmRig.armGroup.rotation.set(-1.1, -0.3, -0.4);
         rightArmRig.forearmGroup.rotation.set(-1.2, 0, 0);
         rightArmRig.armGroup.position.z = 0;
@@ -477,8 +498,8 @@ export function buildHumanoid(role: HumanoidRole): HumanoidRig {
       return;
     }
 
-    // Vis: rising / ducking behind cover
-    body.position.y = (enemy.vis - 1) * 0.75;
+    // Vis: rising / ducking behind cover (for boxer: stands tall in the ring)
+    body.position.y = (enemy.vis - 1) * 0.45;
 
     // AI Stance bob & weave
     const idleT = time * 0.003;
@@ -486,15 +507,29 @@ export function buildHumanoid(role: HumanoidRole): HumanoidRig {
     chest.rotation.z = Math.sin(idleT * 1.2) * 0.05;
 
     if (role === 'boxer') {
-      // Boxing guard: bobbing and weaving
+      const isAiming = enemy.state === 'aiming';
       const isAttacking = enemy.state === 'firing';
+
       if (isAttacking) {
-        // CPU opponent punches forward!
-        rightArmRig.armGroup.rotation.set(-1.4, 0, 0.1);
-        rightArmRig.forearmGroup.rotation.set(-0.2, 0, 0);
-        rightArmRig.armGroup.position.z = -0.3;
+        // CPU opponent lunges forward and drives punch straight at player!
+        body.position.z = enemy.z + 0.65;
+        rightArmRig.armGroup.rotation.set(-1.52, 0, 0.05);
+        rightArmRig.forearmGroup.rotation.set(-0.12, 0, 0);
+        rightArmRig.armGroup.position.z = -0.55;
+
+        leftArmRig.armGroup.rotation.set(-1.25, 0.3, 0.4);
+        leftArmRig.forearmGroup.rotation.set(-1.3, 0, 0);
+      } else if (isAiming) {
+        // Wind-up: Coiling fist back, tense posture preparing strike!
+        body.position.z = enemy.z - 0.08;
+        rightArmRig.armGroup.rotation.set(-0.95, -0.55, -0.35);
+        rightArmRig.forearmGroup.rotation.set(-1.45, 0, 0);
+        rightArmRig.armGroup.position.z = 0.18;
+
+        leftArmRig.armGroup.rotation.set(-1.25, 0.25, 0.35);
+        leftArmRig.forearmGroup.rotation.set(-1.35, 0, 0);
       } else {
-        // Tight guard protecting face
+        // Tight agile guard protecting face: rhythmic bobbing
         rightArmRig.armGroup.rotation.set(-1.15 + Math.sin(idleT * 2) * 0.08, -0.25, -0.35);
         rightArmRig.forearmGroup.rotation.set(-1.25, 0, 0);
         rightArmRig.armGroup.position.z = 0;

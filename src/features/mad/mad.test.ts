@@ -60,6 +60,25 @@ describe('MadGame', () => {
     expect(['S', 'A', 'B', 'C']).toContain(r.rating);
     expect(r.score).toBeGreaterThan(300);
   });
+  it('allows blocking and dodging against CPU boxer strikes', () => {
+    // 1. Guard (Block) prevents damage
+    const gameBlock = new MadGame(LEVELS[0]!);
+    runToCombat(gameBlock);
+    for (let i = 0; i < 250; i++) gameBlock.update(ctl({ isBlocking: true }), 16, ASPECT, new Map());
+    expect(gameBlock.hp).toBe(100);
+
+    // 2. Slip / Duck (Dodge) evades damage
+    const gameDodge = new MadGame(LEVELS[0]!);
+    runToCombat(gameDodge);
+    for (let i = 0; i < 250; i++) gameDodge.update(ctl({ isDodging: true }), 16, ASPECT, new Map());
+    expect(gameDodge.hp).toBe(100);
+
+    // 3. Open stance takes damage when opponent strikes
+    const gameOpen = new MadGame(LEVELS[0]!);
+    runToCombat(gameOpen);
+    for (let i = 0; i < 300; i++) gameOpen.update(ctl({ isBlocking: false, isDodging: false }), 16, ASPECT, new Map());
+    expect(gameOpen.hp).toBeLessThan(100);
+  });
 
   it('cover blocks enemy fire; standing in the open does not', () => {
     const hpAfter = (crouch: boolean): number => {

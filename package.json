@@ -19,6 +19,7 @@
     "@mediapipe/tasks-vision": "^1.0.1",
     "@supabase/supabase-js": "^2.117.2",
     "motion": "^13.4.4",
+    "peerjs": "^1.5.5",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "three": "^0.170.0"

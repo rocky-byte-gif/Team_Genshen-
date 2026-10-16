@@ -33,6 +33,14 @@ export interface MadControls {
   cameraToggle: boolean;
   /** Which hand threw a punch (for boxing / punching). */
   punchHand: 'left' | 'right' | null;
+  /** Boxing specific gesture: 'jab' | 'punch' | 'block' | 'dodge' */
+  boxingGesture: 'jab' | 'punch' | 'block' | 'dodge' | null;
+  /** True when player has both hands up in guard position */
+  isBlocking: boolean;
+  /** True when player ducks (crouch) or slips (leans left/right) */
+  isDodging: boolean;
+  /** Type of punch thrown */
+  punchType: 'jab' | 'punch' | null;
 }
 
 /** Keyboard / mouse stand-in for the camera (testing and accessibility). */
@@ -46,9 +54,27 @@ export interface KeyState {
   fire: boolean;
   charge: boolean;
   cameraToggle?: boolean;
+  block?: boolean;
+  jab?: boolean;
 }
 
-export const NEUTRAL_CONTROLS: MadControls = { tracked: false, speed: 0, aim: { x: 0, y: 0 }, peek: 0, lean: 0, crouch: false, held: false, charge: 0, triggers: [], cameraToggle: false, punchHand: null };
+export const NEUTRAL_CONTROLS: MadControls = {
+  tracked: false,
+  speed: 0,
+  aim: { x: 0, y: 0 },
+  peek: 0,
+  lean: 0,
+  crouch: false,
+  held: false,
+  charge: 0,
+  triggers: [],
+  cameraToggle: false,
+  punchHand: null,
+  boxingGesture: null,
+  isBlocking: false,
+  isDodging: false,
+  punchType: null,
+};
 
 const T = {
   /** Jog: motion energy (shoulder widths per second) that counts as full speed, and the dead zone. */
@@ -58,9 +84,9 @@ const T = {
   /** Lean out of cover, in shoulder widths from the calibrated centre. */
   peekOn: 0.3,
   peekOff: 0.18,
-  punchSpeed: 2.6,
-  punchReach: 2.2,
-  slash: 4.2,
+  punchSpeed: 1.7,
+  punchReach: 1.2,
+  slash: 2.3,
   flickUp: 2.6,
   flickAimLagMs: 220,
   throwDown: 3.2,
@@ -212,6 +238,21 @@ export class MadInput {
     const speedHand = Math.hypot(vx, vy);
     const locked = now < this.lockUntil;
 
+    // --- Boxing Gestures: Block & Dodge ---------------------------------------
+    // High Guard (Block): Both hands raised to chest/chin level and held close
+    const isBlocking = !!(
+      l && r &&
+      l.y < ls.y + 0.22 * body.sw &&
+      r.y < rs.y + 0.22 * body.sw &&
+      Math.hypot(l.x - r.x, l.y - r.y) < 1.05 * body.sw &&
+      Math.abs((l.x + r.x) / 2 - body.center.x) < 0.7 * body.sw
+    );
+
+    // Dodge: Ducking (crouch) or slipping (lateral body shift / sway left or right)
+    const isDodging = crouch || Math.abs(lean) >= 0.22;
+    let punchType: 'jab' | 'punch' | null = null;
+    let boxingGesture: 'jab' | 'punch' | 'block' | 'dodge' | null = null;
+
     // --- Weapon gestures -----------------------------------------------------
     let held = false;
     switch (this.style) {
@@ -238,12 +279,16 @@ export class MadInput {
         }
 
         if (!locked) {
-          const punchL = (vL >= T.punchSpeed || vReachL >= T.punchReach) && curL && curL.reach > 0.72;
-          const punchR = (vR >= T.punchSpeed || vReachR >= T.punchReach) && curR && curR.reach > 0.72;
+          const punchL = (vL >= T.punchSpeed || vReachL >= T.punchReach) && curL && curL.reach > 0.38;
+          const punchR = (vR >= T.punchSpeed || vReachR >= T.punchReach) && curR && curR.reach > 0.38;
           if (punchL || punchR) {
             triggers.push({ x: this.aim.x, y: this.aim.y });
             punchHand = punchL && (!punchR || vL >= vR) ? 'left' : 'right';
-            this.lockUntil = now + 180;
+            const reachVal = punchL ? (curL ? curL.reach : 0) : (curR ? curR.reach : 0);
+            const isHeavy = (punchL ? vReachL : vReachR) >= 1.3 || reachVal > 0.62;
+            punchType = isHeavy ? 'punch' : 'jab';
+            boxingGesture = punchType;
+            this.lockUntil = now + (punchType === 'jab' ? 140 : 200);
           }
         }
         break;
@@ -305,6 +350,11 @@ export class MadInput {
       }
     }
 
+    if (!boxingGesture) {
+      if (isBlocking) boxingGesture = 'block';
+      else if (isDodging) boxingGesture = 'dodge';
+    }
+
     // --- Camera Perspective Toggle Gesture (Temple touch or hands raised) ---
     let cameraToggle = false;
     const templeTouch = !!nose && nose.v > 0.35 && (
@@ -325,7 +375,23 @@ export class MadInput {
       this.cameraToggleHold = Math.max(0, this.cameraToggleHold - dtMs * 2);
     }
 
-    return { tracked: true, speed, aim: { x: this.aim.x, y: this.aim.y }, peek, lean: clamp(lean / 0.55, -1, 1), crouch, held, charge: this.charge, triggers, cameraToggle, punchHand };
+    return {
+      tracked: true,
+      speed,
+      aim: { x: this.aim.x, y: this.aim.y },
+      peek,
+      lean: clamp(lean / 0.55, -1, 1),
+      crouch,
+      held,
+      charge: this.charge,
+      triggers,
+      cameraToggle,
+      punchHand,
+      boxingGesture,
+      isBlocking,
+      isDodging,
+      punchType,
+    };
   }
 
   /** Keyboard / mouse version: the same controls without the camera. */
@@ -335,16 +401,44 @@ export class MadInput {
     this.aim.y += (k.aim.y - this.aim.y) * k1;
     const triggers: Trigger[] = [];
     let punchHand: 'left' | 'right' | null = null;
+    let punchType: 'jab' | 'punch' | null = null;
+    let boxingGesture: 'jab' | 'punch' | 'block' | 'dodge' | null = null;
+
+    const isBlocking = !!(k.block || k.hold);
+    const isDodging = !!(k.crouch || k.left || k.right);
+
     if (k.fire && now >= this.lockUntil) {
       triggers.push({ x: this.aim.x, y: this.aim.y });
-      punchHand = this.keyPunchAlternate ? 'left' : 'right';
+      punchHand = k.jab ? 'left' : this.keyPunchAlternate ? 'left' : 'right';
+      punchType = k.jab ? 'jab' : 'punch';
+      boxingGesture = punchType;
       this.keyPunchAlternate = !this.keyPunchAlternate;
-      this.lockUntil = now + 120;
+      this.lockUntil = now + (punchType === 'jab' ? 120 : 180);
+    } else if (isBlocking) {
+      boxingGesture = 'block';
+    } else if (isDodging) {
+      boxingGesture = 'dodge';
     }
     this.charge = k.charge ? Math.min(1, this.charge + dtMs / 600) : Math.max(0, this.charge - dtMs / 300);
     const peek: -1 | 0 | 1 = k.left ? -1 : k.right ? 1 : 0;
     const cameraToggle = !!k.cameraToggle;
-    return { tracked: true, speed: k.run ? 1 : 0, aim: { ...this.aim }, peek, lean: peek, crouch: k.crouch, held: k.hold, charge: this.charge, triggers, cameraToggle, punchHand };
+    return {
+      tracked: true,
+      speed: k.run ? 1 : 0,
+      aim: { ...this.aim },
+      peek,
+      lean: peek,
+      crouch: k.crouch,
+      held: k.hold,
+      charge: this.charge,
+      triggers,
+      cameraToggle,
+      punchHand,
+      boxingGesture,
+      isBlocking,
+      isDodging,
+      punchType,
+    };
   }
 
   private sampleAgo(now: number, ms: number): Sample | null {

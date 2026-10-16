@@ -72,13 +72,16 @@ export type FxEvent =
   | { t: 'hurt'; amount: number }
   | { t: 'dry' }
   | { t: 'reload' }
-  | { t: 'cover' };
+  | { t: 'cover' }
+  | { t: 'block'; id: number }
+  | { t: 'dodge' };
 
 export interface MadHud {
   phase: MadPhase;
   objective: string;
   /** 0..1 progress of the run (or of the clear in combat). */
   progress: number;
+  distance: number;
   timeMs: number;
   hp: number;
   ammo: number;
@@ -285,10 +288,17 @@ export class MadGame {
 
     // Hints.
     const aiming = this.enemies.some((e) => e.state === 'aiming');
-    if (aiming && !c.crouch) this.say('TAKE COVER — CROUCH!', 'bad', 300);
-    else if (w.mag > 0 && this.ammo <= 0) this.say('OUT OF AMMO — CROUCH TO RELOAD', 'warn', 300);
-    else if (c.crouch && w.mag > 0 && this.ammo < w.mag) this.say('RELOADING…', 'info', 300);
-    else if (this.fightT < 6000 && !c.crouch && c.peek === 0) this.say('LEAN LEFT / RIGHT TO PEEK AND FIRE', 'go', 500);
+    if (w.id === 'boxing') {
+      if (aiming) this.say('⚠️ INCOMING PUNCH — BLOCK OR DODGE!', 'warn', 300);
+      else if (c.isBlocking) this.say('🛡️ GUARD UP — BLOCK READY', 'good', 300);
+      else if (c.isDodging) this.say('⚡ SLIPPING / DODGING', 'good', 300);
+      else if (this.fightT < 6000) this.say('🥊 THROW JABS & PUNCHES AT OPPONENT', 'go', 500);
+    } else {
+      if (aiming && !c.crouch) this.say('TAKE COVER — CROUCH!', 'bad', 300);
+      else if (w.mag > 0 && this.ammo <= 0) this.say('OUT OF AMMO — CROUCH TO RELOAD', 'warn', 300);
+      else if (c.crouch && w.mag > 0 && this.ammo < w.mag) this.say('RELOADING…', 'info', 300);
+      else if (this.fightT < 6000 && !c.crouch && c.peek === 0) this.say('LEAN LEFT / RIGHT TO PEEK AND FIRE', 'go', 500);
+    }
 
     if (this.enemiesLeft === 0) {
       this.phase = 'cleared';
@@ -323,7 +333,11 @@ export class MadGame {
         e.vis = 1;
         if (e.t >= CYCLE.aim) {
           this.go(e, 'firing');
-          this.volley(e, c, peek, sounds);
+          if (this.weapon.id === 'boxing') {
+            this.boxerStrike(e, c, sounds);
+          } else {
+            this.volley(e, c, peek, sounds);
+          }
         }
         break;
       case 'firing':
@@ -348,6 +362,28 @@ export class MadGame {
     e.t = 0;
   }
 
+  private boxerStrike(e: Enemy, c: MadControls, sounds: SfxName[]): void {
+    if (c.isDodging) {
+      this.fx.push({ t: 'dodge' });
+      this.say('⚡ DODGED! Clean slip!', 'good', 700);
+      sounds.push('orb');
+      return;
+    }
+    if (c.isBlocking) {
+      this.fx.push({ t: 'block', id: e.id });
+      this.say('🛡️ BLOCKED! Solid guard!', 'good', 700);
+      sounds.push('clear');
+      return;
+    }
+    const dmg = e.spec.dmg * this.tune.damage * (0.85 + this.rng() * 0.3);
+    this.hp = Math.max(0, this.hp - dmg);
+    this.hurt = Math.min(1, this.hurt + dmg / 25);
+    this.lastHurtAt = this.time;
+    this.fx.push({ t: 'hurt', amount: dmg });
+    this.say('💥 HIT! Keep your gloves up!', 'bad', 700);
+    sounds.push('miss');
+  }
+
   private volley(e: Enemy, c: MadControls, peek: -1 | 0 | 1, sounds: SfxName[]): void {
     const exposure = c.crouch ? MAD.exposure.cover : peek !== 0 ? MAD.exposure.peek : MAD.exposure.open;
     const dmg = e.spec.dmg * this.tune.damage * exposure * (0.85 + this.rng() * 0.3);
@@ -367,7 +403,9 @@ export class MadGame {
   // --- Shooting -------------------------------------------------------------
 
   private canHit(e: Enemy, peek: -1 | 0 | 1): boolean {
-    if (e.state === 'dead' || e.vis < MAD.hitVisibility) return false;
+    if (e.state === 'dead') return false;
+    if (this.weapon.id === 'boxing') return e.vis >= 0.25;
+    if (e.vis < MAD.hitVisibility) return false;
     return !e.spec.hideSide || peek === e.spec.hideSide;
   }
 
@@ -430,7 +468,7 @@ export class MadGame {
       }
     } else if (w.style === 'punch' || w.style === 'slash') {
       this.fx.push({ t: 'impact', x: ax, y: ay });
-      const reachArc = w.style === 'punch' ? 0.45 : MAD.knifeArc;
+      const reachArc = w.style === 'punch' ? 0.48 : MAD.knifeArc;
       for (const e of this.enemies) {
         const t = targets.get(e.id);
         if (!t || !this.canHit(e, peek)) continue;
@@ -438,7 +476,15 @@ export class MadGame {
         const dh = dist(ax, ay, t.hx, t.hy);
         const isHead = dh < 0.22;
         if (d <= reachArc + t.br || dh <= reachArc + t.hr) {
-          this.damage(e, w.damage * (isHead ? w.head : 1), isHead, sounds);
+          let damage = w.damage * (isHead ? w.head : 1);
+          if (w.id === 'boxing') {
+            if (c?.punchType === 'punch') damage *= 1.35;
+            if (e.state === 'aiming') {
+              damage *= 1.5;
+              this.say('💥 COUNTER-PUNCH!', 'good', 600);
+            }
+          }
+          this.damage(e, damage, isHead, sounds);
           connected = true;
         }
       }
@@ -479,7 +525,11 @@ export class MadGame {
       this.score += 100 + (head ? 60 : 0);
       this.fx.push({ t: 'kill', id: e.id, head });
       sounds.push(head ? 'perfect' : 'orb');
-      this.say(head ? 'HEADSHOT!' : 'ENEMY DOWN', 'good', 900);
+      if (this.weapon.id === 'boxing') {
+        this.say(head ? 'KNOCKOUT PUNCH!' : 'KNOCKOUT! ROUND WON', 'good', 1400);
+      } else {
+        this.say(head ? 'HEADSHOT!' : 'ENEMY DOWN', 'good', 900);
+      }
     } else {
       this.fx.push({ t: 'hit', id: e.id, head });
       sounds.push('orb');
@@ -497,18 +547,24 @@ export class MadGame {
 
   hud(): MadHud {
     const total = this.enemies.length;
+    const isBox = this.weapon.id === 'boxing';
     const objective =
-      this.phase === 'run' ? `REACH THE COMBAT SPOT · ${Math.max(0, Math.ceil(this.level.run - this.distance))} m` : this.phase === 'arrive' ? 'TAKE COVER' : `ELIMINATE ALL ENEMIES · ${total - this.enemiesLeft}/${total}`;
+      this.phase === 'run'
+        ? (isBox ? `STEP INTO THE RING · ${Math.max(0, Math.ceil(this.level.run - this.distance))} m` : `REACH THE COMBAT SPOT · ${Math.max(0, Math.ceil(this.level.run - this.distance))} m`)
+        : this.phase === 'arrive'
+        ? (isBox ? 'RING BELL · ROUND 1 FIGHT!' : 'TAKE COVER')
+        : (isBox ? 'KNOCK OUT THE OPPONENT IN THE RING' : `ELIMINATE ALL ENEMIES · ${total - this.enemiesLeft}/${total}`);
     const progress = this.phase === 'run' ? this.distance / this.level.run : this.phase === 'arrive' ? 1 : total > 0 ? (total - this.enemiesLeft) / total : 1;
     const w = this.weapon;
     return {
       phase: this.phase,
       objective,
       progress,
+      distance: this.distance,
       timeMs: this.time,
       hp: Math.round(this.hp),
-      ammo: this.ammo,
-      mag: w.mag,
+      ammo: isBox ? 0 : this.ammo,
+      mag: isBox ? 0 : w.mag,
       reload: w.mag > 0 && this.ammo < w.mag ? clamp(this.reloadT / w.reloadMs, 0, 1) : 0,
       enemiesLeft: this.enemiesLeft,
       enemiesTotal: total,

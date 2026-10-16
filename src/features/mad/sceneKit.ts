@@ -398,11 +398,15 @@ export function buildSoldier(heavy: boolean, flashTex: THREE.Texture): SoldierRi
 export interface ViewModel {
   group: THREE.Group;
   muzzle: THREE.Object3D;
+  rGlove?: THREE.Mesh;
+  lGlove?: THREE.Mesh;
 }
 
 /** Simple, readable first-person weapon models built from boxes and cylinders. Muzzle points to -z. */
 export function buildViewModel(id: WeaponId): ViewModel {
   const group = new THREE.Group();
+  let rGlove: THREE.Mesh | undefined;
+  let lGlove: THREE.Mesh | undefined;
   const metal = (color: number, rough = 0.35, m = 0.85) => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: m });
   const dark = metal(0x14161a, 0.45, 0.6);
   const steel = metal(0x9aa2ac, 0.25, 1);
@@ -429,12 +433,12 @@ export function buildViewModel(id: WeaponId): ViewModel {
       const redGlove = new THREE.MeshStandardMaterial({ color: 0xd90429, roughness: 0.35, metalness: 0.2 });
       const laceMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
       // Right glove (dominant)
-      const rGlove = new THREE.Mesh(new THREE.SphereGeometry(0.08, 14, 12), redGlove);
+      rGlove = new THREE.Mesh(new THREE.SphereGeometry(0.08, 14, 12), redGlove);
       rGlove.scale.set(1.0, 1.25, 0.95);
       rGlove.position.set(0.16, -0.16, -0.38);
       group.add(rGlove);
       // Left glove
-      const lGlove = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 12), redGlove);
+      lGlove = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 12), redGlove);
       lGlove.scale.set(1.0, 1.25, 0.95);
       lGlove.position.set(-0.16, -0.18, -0.42);
       group.add(lGlove);
@@ -527,5 +531,5 @@ export function buildViewModel(id: WeaponId): ViewModel {
       muzzle.position.set(0, 0, -0.85);
       break;
   }
-  return { group, muzzle };
+  return { group, muzzle, rGlove, lGlove };
 }

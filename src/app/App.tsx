@@ -32,6 +32,7 @@ import { PermissionScreen } from '../screens/PermissionScreen';
 import { ResultsScreen } from '../screens/results/ResultsScreen';
 import { TutorialScreen } from '../screens/TutorialScreen';
 import { VersusScreen } from '../screens/versus/VersusScreen';
+import { ShadowFightScreen } from '../screens/shadowFight/ShadowFightScreen';
 import { flowReducer, INITIAL_FLOW, type Phase } from './flow';
 
 /** Phases during which an online room stays open. */
@@ -370,6 +371,11 @@ export function App() {
             <MadScreen key={flow.runId} engine={engine} difficulty={profile.difficulty} onRecord={onMadRecord} onExit={onModes} />
           </Suspense>
         );
+      }
+      break;
+    case 'shadow':
+      if (engine) {
+        screen = <ShadowFightScreen key={flow.runId} engine={engine} onExit={onModes} />;
       }
       break;
     case 'lobby':

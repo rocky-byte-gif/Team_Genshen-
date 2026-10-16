@@ -147,6 +147,33 @@ class MadAudio {
     this.thump(520, 220, 0.18, 0.6);
   }
 
+  punchBlock(): void {
+    this.burst({ dur: 0.16, gain: 0.65, freq: 1600, to: 420, type: 'bandpass', q: 2.5 });
+    this.thump(190, 75, 0.14, 0.6);
+  }
+
+  dodgeWhoosh(): void {
+    this.burst({ dur: 0.18, gain: 0.4, freq: 2200, to: 280, type: 'bandpass', q: 1.8 });
+  }
+
+  boxingBell(): void {
+    const a = this.ctx();
+    if (!a) return;
+    const { ctx, master } = a;
+    [0, 0.12].forEach((delay) => {
+      const t = ctx.currentTime + delay;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(1480, t);
+      g.gain.setValueAtTime(0.35, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.65);
+      o.connect(g).connect(master);
+      o.start(t);
+      o.stop(t + 0.7);
+    });
+  }
+
   cameraSwitch(): void {
     this.burst({ dur: 0.08, gain: 0.4, freq: 3200, to: 1600, type: 'bandpass', q: 2.5 });
     this.thump(440, 880, 0.12, 0.45);

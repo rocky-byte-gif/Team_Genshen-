@@ -14,6 +14,7 @@ import { difficultyOf, type Difficulty } from '../../features/modes/difficulty';
 import { useEngineFrame } from '../../hooks/useEngine';
 import { sfx } from '../../lib/audio/sfx';
 import { CampaignMap } from './CampaignMap';
+import { HowToPlayModal } from './HowToPlayModal';
 import { WeaponIcon } from './WeaponIcon';
 import './MadScreen.css';
 
@@ -54,6 +55,9 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
   const [result, setResult] = useState<{ r: MadResult; rec: RecordedMission } | null>(null);
   const [cameraMode, setCameraMode] = useState<'fpp' | 'tpp'>('fpp');
   const [cameraToast, setCameraToast] = useState<string | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
+  const [activeGesture, setActiveGesture] = useState<string | null>(null);
+  const gestureTimer = useRef<number | null>(null);
 
   const stageRef = useRef<Stage>('map');
   const sessionRef = useRef<Session | null>(null);
@@ -151,7 +155,8 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
         case 'KeyA': case 'ArrowLeft': s.left = down; break;
         case 'KeyD': case 'ArrowRight': s.right = down; break;
         case 'KeyS': case 'ControlLeft': s.crouch = down; break;
-        case 'ShiftLeft': s.hold = down; break;
+        case 'ShiftLeft': case 'KeyB': s.hold = down; s.block = down; break;
+        case 'KeyQ': s.jab = down; s.fire = down; break;
         case 'KeyE': s.charge = down; break;
         case 'KeyF': s.fire = down; break;
         case 'KeyV': s.cameraToggle = down; break;
@@ -220,14 +225,27 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
         case 'kill':
           if (weaponId === 'boxing') {
             madAudio.punchHit(true);
+            madAudio.boxingBell();
           } else if (weaponId === 'sword') {
             madAudio.swordClash();
           } else {
             madAudio.hit(true);
           }
           break;
+        case 'block':
+          madAudio.punchBlock();
+          break;
+        case 'dodge':
+          madAudio.dodgeWhoosh();
+          break;
         case 'explosion': madAudio.explosion(weaponId === 'bomb' ? 0.25 : 0.05); break;
-        case 'volley': madAudio.volley(f.blocked); break;
+        case 'volley':
+          if (weaponId === 'boxing') {
+            madAudio.punchWhoosh();
+          } else {
+            madAudio.volley(f.blocked);
+          }
+          break;
         case 'hurt': madAudio.hurt(); break;
         case 'dry': madAudio.dry(); break;
         case 'reload': madAudio.reload(); break;
@@ -276,6 +294,15 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
     const controls = stageRef.current === 'done' ? { ...NEUTRAL_CONTROLS, aim: lastControls.current.aim } : s.input.update(frame, dt, kb);
     lastControls.current = controls;
 
+    if (weapon.id === 'boxing') {
+      const g = controls.boxingGesture;
+      if (g) {
+        setActiveGesture(g);
+        if (gestureTimer.current) window.clearTimeout(gestureTimer.current);
+        gestureTimer.current = window.setTimeout(() => setActiveGesture(null), 600);
+      }
+    }
+
     if (controls.cameraToggle && scene) {
       const mode = scene.toggleCameraMode();
       setCameraMode(mode);
@@ -304,6 +331,7 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
       cross.style.setProperty('--charge', String(controls.charge));
       cross.dataset.scope = weapon.style === 'scope' && controls.charge > 0.04 ? '1' : '0';
       cross.dataset.armed = controls.held || controls.charge >= 0.99 ? '1' : '0';
+      cross.dataset.boxing = weapon.id === 'boxing' ? '1' : '0';
     }
     if (hurtRef.current) hurtRef.current.style.opacity = String(Math.min(1, s.game.hurt));
     if (speedRef.current) speedRef.current.style.transform = `scaleX(${Math.min(1, s.game.speed)})`;
@@ -327,7 +355,17 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
     <main className={`mad mad--${stage}`} style={{ '--accent': '#ff2b3a' } as CSSProperties} onPointerMove={onPointerMove} onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
       {session && <canvas key={session.runId} ref={canvasRef} className="mad__canvas" aria-hidden="true" />}
 
-      {stage === 'map' && <CampaignMap engine={engine} progress={progress} selected={selected} onSelect={setSelected} onDeploy={deploy} onExit={onExit} />}
+      {stage === 'map' && (
+        <CampaignMap
+          engine={engine}
+          progress={progress}
+          selected={selected}
+          onSelect={setSelected}
+          onDeploy={deploy}
+          onExit={onExit}
+          onOpenGuide={() => setShowGuide(true)}
+        />
+      )}
 
       {inMission && hud && (
         <div className="mad__hud" aria-live="polite">
@@ -339,6 +377,15 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
               <div className="mad__bar"><i style={{ transform: `scaleX(${Math.min(1, Math.max(0, hud.progress))})` }} /></div>
             </div>
             <div className="mad__right">
+              <button
+                type="button"
+                className="mad-btn mad-btn--ghost mad-btn--small"
+                onClick={() => setShowGuide(true)}
+                title="How to Play & Gesture Guide"
+                style={{ borderColor: '#40c4ff', color: '#40c4ff' }}
+              >
+                ❓ Guide
+              </button>
               <button
                 type="button"
                 className="mad-cam-toggle"
@@ -377,6 +424,48 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
             )}
           </AnimatePresence>
 
+          {stage === 'playing' && hud.phase === 'combat' && (
+            <div className="mad__combat-hint">
+              {weapon.id === 'boxing' && (
+                <div className="mad__boxing-guide-banner">
+                  <span>🥊 <strong>PUNCH &amp; JAB:</strong> Fists forward</span>
+                  <span>·</span>
+                  <span>🛡️ <strong>BLOCK:</strong> Hands up to chin</span>
+                  <span>·</span>
+                  <span>⚡ <strong>DODGE:</strong> Duck / lean</span>
+                </div>
+              )}
+              {weapon.id === 'sword' && (
+                <span>⚔️ <strong>SWORD DUEL (1v1):</strong> Slash your hand horizontally or diagonally to strike! <i>(Or press F / click mouse)</i></span>
+              )}
+              {weapon.id === 'rifle' && (
+                <span>🎯 <strong>AUTOMATIC RIFLE (1v3):</strong> Point two fingers at enemies to lock on &amp; fire! <i>(Or move mouse &amp; click)</i></span>
+              )}
+              {weapon.id !== 'boxing' && weapon.id !== 'sword' && weapon.id !== 'rifle' && (
+                <span>💥 <strong>{weapon.name.toUpperCase()}:</strong> {weapon.gesture} <i>(Or press F / click mouse)</i></span>
+              )}
+            </div>
+          )}
+
+          <AnimatePresence>
+            {weapon.id === 'boxing' && activeGesture && (
+              <motion.div
+                key={activeGesture}
+                className="mad__stance-badge"
+                data-stance={activeGesture}
+                initial={{ opacity: 0, scale: 0.85, y: -8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: -6 }}
+                transition={{ duration: 0.12 }}
+              >
+                {activeGesture === 'block' && '🛡️ HIGH GUARD (BLOCKING)'}
+                {activeGesture === 'dodge' && '⚡ SLIPPING (DODGING)'}
+                {activeGesture === 'jab' && '🥊 LEFT JAB'}
+                {activeGesture === 'punch' && '🥊 POWER PUNCH'}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <div ref={crossRef} className="mad__cross" aria-hidden="true">
             <span className="mad__cross-ring" />
             <span className="mad__cross-dot" />
@@ -392,10 +481,12 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
               <WeaponIcon id={weapon.id} size={34} />
               <div>
                 <strong>{weapon.name}</strong>
-                <span>{weapon.gesture}</span>
+                <span>{weapon.id === 'boxing' ? 'Fist Duel (1v1 Boxing)' : weapon.gesture}</span>
               </div>
               <div className="mad__ammo" data-empty={hud.mag > 0 && hud.ammo === 0 ? '1' : '0'}>
-                {hud.mag > 0 ? (
+                {weapon.id === 'boxing' ? (
+                  <span className="mad__fist-badge">🥊 FISTS READY</span>
+                ) : hud.mag > 0 ? (
                   <>
                     <b>{hud.ammo}</b>
                     <small>/ {hud.mag}</small>
@@ -407,13 +498,27 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
               </div>
             </div>
             <div className="mad__enemies">
-              <span>Hostiles</span>
+              <span>{weapon.id === 'boxing' ? 'Opponent' : 'Hostiles'}</span>
               <strong>{hud.enemiesLeft}</strong>
             </div>
           </div>
           {hud.phase === 'run' && (
-            <div className="mad__sprint" aria-hidden="true">
-              <span>Jog in place</span>
+            <div className="mad__sprint">
+              <div className="mad__sprint-info">
+                <span>Jog in place ({Math.max(0, Math.round(level.run - hud.distance))}m remaining)</span>
+                <button
+                  type="button"
+                  className="mad-skip-run"
+                  onClick={() => {
+                    if (session) {
+                      session.game.distance = level.run;
+                    }
+                  }}
+                  title="Skip sprint and start fight now"
+                >
+                  ⏩ Skip to Fight
+                </button>
+              </div>
               <div><i ref={speedRef} /></div>
             </div>
           )}
@@ -432,7 +537,7 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
               <li><b>3</b><span><strong>{weapon.name.toUpperCase()}</strong> {weapon.how}</span></li>
             </ol>
             <div className="mad__weapon-card"><WeaponIcon id={weapon.id} size={56} /><span>{weapon.gesture}</span></div>
-            <div style={{ margin: '14px 0 6px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <div style={{ margin: '14px 0 6px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
               <button
                 type="button"
                 className="mad-btn"
@@ -446,6 +551,14 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
                 }}
               >
                 ▶ Start Mission
+              </button>
+              <button
+                type="button"
+                className="mad-btn mad-btn--ghost"
+                style={{ fontSize: '16px', padding: '12px 22px', borderColor: '#40c4ff', color: '#40c4ff' }}
+                onClick={() => setShowGuide(true)}
+              >
+                🥋 How to Play &amp; Test Gestures
               </button>
             </div>
             <p className="mad-hint">Step into the frame — the mission starts by itself · Camera: Touch temple gesture or press V (TPP/FPP) · Keyboard: W run · A/D peek · S crouch · mouse + click</p>
@@ -494,6 +607,14 @@ export function MadScreen({ engine, difficulty, onRecord, onExit }: MadScreenPro
       <div className="mad__pip">
         <CameraViewport engine={engine} variant="pip" hud={false} trail={false} />
       </div>
+
+      {showGuide && (
+        <HowToPlayModal
+          engine={engine}
+          initialTab="gestures"
+          onClose={() => setShowGuide(false)}
+        />
+      )}
     </main>
   );
 }

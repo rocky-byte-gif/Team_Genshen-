@@ -174,6 +174,8 @@ export class MadScene {
   private shake = 0;
   private kick = 0;
   private slash = 0;
+  private punchL = 0;
+  private punchR = 0;
   private throwHide = 0;
   private fov = 62;
   private scopeAmt = 0;
@@ -280,6 +282,10 @@ export class MadScene {
   // --- Setup ---------------------------------------------------------------
 
   private buildWorld(rng: () => number): void {
+    if (this.weapon.id === 'boxing') {
+      this.buildBoxingArena();
+      return;
+    }
     const th = this.theme;
     const total = this.runLen + this.level.range + 70;
     const zMid = 14 - total / 2;
@@ -443,8 +449,172 @@ export class MadScene {
     }
   }
 
+  /** Builds an authentic championship underground boxing arena with elevated ring, ropes, corner turnbuckles, overhead stadium lights. */
+  private buildBoxingArena(): void {
+    const ringZ = -(this.runLen + this.level.range / 2);
+    const ringSize = 8.6;
+    const ringHeight = 0.55;
+
+    // 1. Dark polished arena gym floor
+    const gymFloorMat = new THREE.MeshStandardMaterial({ color: 0x11141a, roughness: 0.65, metalness: 0.15 });
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 140), gymFloorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set(0, -0.01, ringZ);
+    floor.receiveShadow = true;
+    this.scene.add(floor);
+
+    // 2. Elevated Ring Platform Base (Wooden/Steel Frame with draped skirt)
+    const apronMat = new THREE.MeshStandardMaterial({ color: 0x181215, roughness: 0.9 });
+    const platform = new THREE.Mesh(new THREE.BoxGeometry(ringSize + 1.2, ringHeight, ringSize + 1.2), apronMat);
+    platform.position.set(0, ringHeight / 2, ringZ);
+    platform.receiveShadow = true;
+    platform.castShadow = true;
+    this.scene.add(platform);
+
+    // 3. Ring Canvas Mat
+    const canvasTex = canvasTexture(256, 256, (g, w, h) => {
+      g.fillStyle = '#e8e2d8';
+      g.fillRect(0, 0, w, h);
+      g.strokeStyle = '#d8d0c4';
+      g.lineWidth = 1;
+      for (let i = 0; i < w; i += 8) {
+        g.beginPath();
+        g.moveTo(i, 0);
+        g.lineTo(i, h);
+        g.stroke();
+      }
+      // Championship center circle & logo
+      g.strokeStyle = '#c9182b';
+      g.lineWidth = 4;
+      g.beginPath();
+      g.arc(w / 2, h / 2, 72, 0, Math.PI * 2);
+      g.stroke();
+      g.fillStyle = '#c9182b';
+      g.font = 'bold 22px sans-serif';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText('BOXING DUEL', w / 2, h / 2);
+    });
+    const canvasMat = new THREE.MeshStandardMaterial({ map: canvasTex, roughness: 0.9, metalness: 0.05 });
+    const matMesh = new THREE.Mesh(new THREE.BoxGeometry(ringSize, 0.04, ringSize), canvasMat);
+    matMesh.position.set(0, ringHeight + 0.02, ringZ);
+    matMesh.receiveShadow = true;
+    this.scene.add(matMesh);
+
+    // 4. Corner Posts (4 Heavy Steel Cylinders with turnbuckle pads)
+    const postMat = new THREE.MeshStandardMaterial({ color: 0x22262f, roughness: 0.35, metalness: 0.8 });
+    const redCorner = new THREE.MeshStandardMaterial({ color: 0xd90429, roughness: 0.4 });
+    const blueCorner = new THREE.MeshStandardMaterial({ color: 0x0077b6, roughness: 0.4 });
+    const whiteCorner = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.4 });
+
+    const half = ringSize / 2;
+    const postHeight = 2.4;
+    const corners = [
+      { x: -half, z: ringZ + half, mat: redCorner },
+      { x: half, z: ringZ - half, mat: blueCorner },
+      { x: half, z: ringZ + half, mat: whiteCorner },
+      { x: -half, z: ringZ - half, mat: whiteCorner },
+    ];
+
+    corners.forEach((c) => {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, postHeight, 16), postMat);
+      post.position.set(c.x, postHeight / 2, c.z);
+      post.castShadow = true;
+      this.scene.add(post);
+
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(0.32, 1.4, 0.32), c.mat);
+      pad.position.set(c.x * 0.94, ringHeight + 0.95, c.z * 0.94);
+      pad.rotation.y = Math.atan2(c.x, c.z - ringZ);
+      pad.castShadow = true;
+      this.scene.add(pad);
+    });
+
+    // 5. Ring Ropes (4 Horizontal Levels around perimeter)
+    const ropeMat = new THREE.MeshStandardMaterial({ color: 0xd90429, roughness: 0.5 });
+    const whiteRopeMat = new THREE.MeshStandardMaterial({ color: 0xf8f9fa, roughness: 0.5 });
+    const blueRopeMat = new THREE.MeshStandardMaterial({ color: 0x0077b6, roughness: 0.5 });
+
+    const ropeHeights = [ringHeight + 0.4, ringHeight + 0.75, ringHeight + 1.1, ringHeight + 1.45];
+    ropeHeights.forEach((rh, idx) => {
+      const curMat = idx === 0 ? blueRopeMat : idx === 3 ? ropeMat : whiteRopeMat;
+      const ropeRadius = 0.024;
+
+      // North & South ropes
+      [-half, half].forEach((x) => {
+        const rope = new THREE.Mesh(new THREE.CylinderGeometry(ropeRadius, ropeRadius, ringSize, 8), curMat);
+        rope.position.set(x, rh, ringZ);
+        rope.rotation.x = Math.PI / 2;
+        rope.castShadow = true;
+        this.scene.add(rope);
+      });
+
+      // East & West ropes
+      [ringZ - half, ringZ + half].forEach((z) => {
+        const rope = new THREE.Mesh(new THREE.CylinderGeometry(ropeRadius, ropeRadius, ringSize, 8), curMat);
+        rope.position.set(0, rh, z);
+        rope.rotation.z = Math.PI / 2;
+        rope.castShadow = true;
+        this.scene.add(rope);
+      });
+    });
+
+    // 6. Overhead Lighting Truss & 4 Stadium Spotlights
+    const trussMat = new THREE.MeshStandardMaterial({ color: 0x242832, roughness: 0.5, metalness: 0.85 });
+    const trussHeight = 7.5;
+    const truss = new THREE.Mesh(new THREE.BoxGeometry(ringSize * 1.1, 0.3, ringSize * 1.1), trussMat);
+    truss.position.set(0, trussHeight, ringZ);
+    this.scene.add(truss);
+
+    const spotCoords: [number, number][] = [
+      [-half * 0.8, ringZ + half * 0.8],
+      [half * 0.8, ringZ + half * 0.8],
+      [half * 0.8, ringZ - half * 0.8],
+      [-half * 0.8, ringZ - half * 0.8],
+    ];
+    spotCoords.forEach(([sx, sz]) => {
+      const spot = new THREE.SpotLight(0xfff5e6, 8.5, 30, Math.PI / 4.5, 0.4, 1.2);
+      spot.position.set(sx, trussHeight - 0.2, sz);
+      spot.target.position.set(0, ringHeight, ringZ);
+      spot.castShadow = true;
+      this.scene.add(spot);
+      this.scene.add(spot.target);
+
+      const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 0.45, 12), trussMat);
+      housing.position.set(sx, trussHeight - 0.2, sz);
+      housing.lookAt(0, ringHeight, ringZ);
+      this.scene.add(housing);
+    });
+
+    const ringLight = new THREE.PointLight(0xffe8c0, 6, 18, 1.4);
+    ringLight.position.set(0, ringHeight + 3.5, ringZ);
+    this.scene.add(ringLight);
+
+    // 7. Surrounding Stadium Columns
+    const colMat = new THREE.MeshStandardMaterial({ color: 0x151820, roughness: 0.85 });
+    for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
+      const cx = Math.cos(angle) * 16;
+      const cz = ringZ + Math.sin(angle) * 18;
+      const col = new THREE.Mesh(new THREE.BoxGeometry(1.4, 12, 1.4), colMat);
+      col.position.set(cx, 6, cz);
+      col.castShadow = true;
+      this.scene.add(col);
+    }
+  }
+
   /** The concrete cover the player fights from: a low wall with tall end pillars, sandbags and rebar. */
   private buildPlayerCover(rng: () => number): void {
+    if (this.weapon.id === 'boxing') {
+      // In boxing, the player starts at their corner stool inside the ring, not a military bunker!
+      const z = -this.runLen - 0.15;
+      const cornerPadMat = new THREE.MeshStandardMaterial({ color: 0xd90429, roughness: 0.35 });
+      const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.22, 0.55, 14), cornerPadMat);
+      stool.position.set(-2.2, 0.275, z);
+      stool.castShadow = true;
+      stool.receiveShadow = true;
+      this.scene.add(stool);
+      return;
+    }
+
     const concrete = concreteTexture(rng, '#8a8780');
     const mat = new THREE.MeshStandardMaterial({ map: concrete, bumpMap: concrete, bumpScale: 2.2, roughness: 0.95 });
     const sand = new THREE.MeshStandardMaterial({ color: 0x6a5c40, roughness: 1, bumpMap: concrete, bumpScale: 1.5 });
@@ -519,6 +689,16 @@ export class MadScene {
       rig.root.rotation.y = Math.atan2(-x, this.runLen);
       this.scene.add(rig.root);
       this.rigs.push(rig);
+
+      if (this.weapon.id === 'boxing') {
+        // In boxing ring, the boxer stands in the open ring without military barriers or crates!
+        rig.root.traverse((o) => {
+          const m = o as THREE.Mesh;
+          if (m.isMesh) m.castShadow = true;
+        });
+        continue;
+      }
+
       const h = heights[spec.cover];
       const cover = new THREE.Mesh(spec.cover === 'crate' ? new THREE.BoxGeometry(1.4, h, 1.4) : spec.cover === 'wall' ? new THREE.BoxGeometry(2.6, h, 0.55) : new THREE.BoxGeometry(2.1, h, 0.62), spec.cover === 'crate' ? crateMat : concreteMat);
       scaleUV(cover.geometry, 1.5, 1);
@@ -569,11 +749,12 @@ export class MadScene {
 
   setQuality(q: QualityLevel): void {
     this.quality = q;
-    this.maxDpr = q === 'high' ? 1.5 : q === 'medium' ? 1.25 : 1;
+    // Cap DPR to 1.15 max to ensure 60 FPS on laptops with high-DPI displays
+    this.maxDpr = q === 'high' ? 1.15 : 1.0;
     const shadows = q !== 'low';
     this.renderer.shadowMap.enabled = shadows;
     this.sun.castShadow = shadows;
-    this.sun.shadow.mapSize.set(q === 'high' ? 2048 : 1024, q === 'high' ? 2048 : 1024);
+    this.sun.shadow.mapSize.set(q === 'high' ? 1024 : 512, q === 'high' ? 1024 : 512);
     if (this.sun.shadow.map) {
       this.sun.shadow.map.dispose();
       this.sun.shadow.map = null;
@@ -586,13 +767,13 @@ export class MadScene {
     } else if (!this.composer) {
       this.composer = new EffectComposer(this.renderer);
       this.composer.addPass(new RenderPass(this.scene, this.camera));
-      this.bloom = new UnrealBloomPass(new THREE.Vector2(this.width, this.height), this.theme.bloom, 0.6, 0.82);
+      this.bloom = new UnrealBloomPass(new THREE.Vector2(Math.round(this.width / 2), Math.round(this.height / 2)), this.theme.bloom * 0.6, 0.45, 0.85);
       this.composer.addPass(this.bloom);
       this.post = new ShaderPass(POST_SHADER);
       this.composer.addPass(this.post);
       this.composer.addPass(new OutputPass());
     }
-    if (this.bloom) this.bloom.strength = this.theme.bloom * (q === 'medium' ? 0.8 : 1);
+    if (this.bloom) this.bloom.strength = this.theme.bloom * (q === 'medium' ? 0.5 : 0.7);
     this.fit();
   }
 
@@ -725,16 +906,16 @@ export class MadScene {
       const { rig } = v;
       rig.updateAsOpponent(e, this.weapon.id, this.time * 1000, dt * 1000);
       const aiming = e.state === 'aiming';
-      rig.marker.visible = aiming;
-      if (aiming) {
+      rig.marker.visible = aiming && this.weapon.id !== 'boxing';
+      if (aiming && this.weapon.id !== 'boxing') {
         const pulse = 1 + 0.3 * Math.sin(this.time * 18);
         rig.marker.scale.setScalar(pulse);
         rig.marker.position.y = 2.15 + Math.sin(this.time * 9) * 0.05;
         rig.marker.rotation.y = this.time * 3;
       }
       v.flashT = Math.max(0, v.flashT - dt);
-      rig.flash.visible = v.flashT > 0;
-      if (v.flashT > 0) rig.flash.scale.setScalar(0.6 + Math.random() * 0.6);
+      rig.flash.visible = v.flashT > 0 && this.weapon.id !== 'boxing';
+      if (v.flashT > 0 && this.weapon.id !== 'boxing') rig.flash.scale.setScalar(0.6 + Math.random() * 0.6);
     }
     void game;
   }
@@ -763,9 +944,31 @@ export class MadScene {
     }
     const w = this.weapon;
     const vo = VIEW_OFFSETS[w.id] ?? { p: [0.22, -0.25, -0.56] as [number, number, number], r: [0, 0, 0] as [number, number, number] };
-    this.kick = Math.max(0, this.kick - dt * 7);
-    this.slash = Math.max(0, this.slash - dt * 4.5);
-    this.throwHide = Math.max(0, this.throwHide - dt);
+    if (w.id === 'boxing') {
+      this.punchL = Math.max(0, this.punchL - dt * 6.5);
+      this.punchR = Math.max(0, this.punchR - dt * 6.5);
+      if (c.punchHand === 'left') this.punchL = 1;
+      else if (c.punchHand === 'right') this.punchR = 1;
+      else if (c.triggers.length > 0) {
+        if (this.punchL <= this.punchR) this.punchL = 1;
+        else this.punchR = 1;
+      }
+
+      if (c.isBlocking) {
+        // High Peekaboo Guard: Both gloves pulled up tight in center of view
+        if (this.view.rGlove) this.view.rGlove.position.set(0.065, -0.05, -0.28);
+        if (this.view.lGlove) this.view.lGlove.position.set(-0.065, -0.05, -0.28);
+      } else {
+        const jabExt = c.punchType === 'jab' ? 0.35 : 0.44;
+        if (this.view.rGlove) {
+          this.view.rGlove.position.set(0.16 - this.punchR * 0.05, -0.16 + this.punchR * 0.04, -0.38 - this.punchR * 0.45);
+        }
+        if (this.view.lGlove) {
+          this.view.lGlove.position.set(-0.16 + this.punchL * 0.05, -0.18 + this.punchL * 0.04, -0.42 - this.punchL * jabExt);
+        }
+      }
+    }
+
     const bob = game.phase === 'run' ? Math.sin(game.distance * 2.9) * 0.012 * Math.min(1, game.speed) : 0;
     const lower = game.coverAmt * 0.32;
     this.viewRoot.position.set(vo.p[0] - this.slash * 0.28 + bob * 0.5 - game.peekAmt * 0.02, vo.p[1] - lower + bob + Math.sin(this.time * 1.4) * 0.002, vo.p[2] + this.kick * 0.09 - (this.throwHide > 0 ? 0.3 : 0));
@@ -780,6 +983,10 @@ export class MadScene {
       case 'shot': {
         this.kick = Math.max(this.kick, w.recoil);
         this.shake += w.recoil * 0.25;
+        if (w.id === 'boxing') {
+          // Pure fist punch - no gun muzzle flash or tracers
+          break;
+        }
         if (w.style === 'slash') this.slash = 1;
         else if (w.id === 'bomb') this.throwHide = 0.6;
         else if (w.style !== 'throw') {
@@ -790,6 +997,18 @@ export class MadScene {
           this.worldAt(c.aim.x * this.aspect, c.aim.y, tmp2);
           this.tracer(this.view.muzzle.getWorldPosition(tmp), tmp2.clone(), 0xffd08a, 0.07);
         }
+        break;
+      }
+      case 'block': {
+        this.shake += 0.18;
+        const camZ = this.camera.position.z;
+        for (let i = 0; i < 12; i++) {
+          this.sparks.emit((Math.random() - 0.5) * 0.35, 1.25 + (Math.random() - 0.5) * 0.25, camZ - 0.65, (Math.random() - 0.5) * 2.5, Math.random() * 2, (Math.random() - 0.5) * 2, [1.5, 2.2, 3.2], 1, 0.04, 0.22);
+        }
+        break;
+      }
+      case 'dodge': {
+        this.shake += 0.06;
         break;
       }
       case 'hit': {
@@ -817,6 +1036,10 @@ export class MadScene {
         break;
       }
       case 'volley': {
+        if (w.id === 'boxing') {
+          // Boxer throws punches, no guns/tracers!
+          break;
+        }
         const v = this.visuals.find((x) => x.enemy.id === fx.id);
         if (v) {
           v.flashT = 0.12;

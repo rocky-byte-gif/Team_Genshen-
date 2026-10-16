@@ -20,6 +20,7 @@ const PATHS: Record<ModeIconName, string[]> = {
   reflex: ['M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16z', 'M12.8 8.5L10 13h3.2l-.9 3.8L15.2 12H12l.8-3.5z', 'M10 2h4'],
   squat: ['M13.8 4.6a1.8 1.8 0 1 1-3.6 0 1.8 1.8 0 0 1 3.6 0', 'M12 7.6l-1.2 5', 'M10.8 12.6l5 1.4-1.2 5.4', 'M12 9h5.5', 'M5 20.5h14'],
   boss: ['M6 10a6 6 0 0 1 12 0v4.5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4z', 'M6.8 6.6L4.5 3', 'M17.2 6.6L19.5 3', 'M8.6 10.6l2.4 1.3', 'M15.4 10.6L13 11.9', 'M10 15.5h4'],
+  fighter: ['M14.5 17.5L3 6V3h3l11.5 11.5', 'M13 19l2 2 4-4-2-2', 'M19 13l2 2-4 4-2-2', 'M9.5 6.5L21 18v3h-3L6.5 9.5'],
 };
 
 export function ModeIcon({ name, size = 28, className }: { name: ModeIconName; size?: number; className?: string }) {

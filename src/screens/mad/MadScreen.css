@@ -452,6 +452,91 @@
 .mad__cross[data-armed='1'] .mad__cross-ring { border-color: var(--red); }
 .mad__cross[data-scope='1'] .mad__cross-ring { width: 90px; height: 90px; left: -45px; top: -45px; }
 
+/* Boxing Focus Reticle (No Gun Theme) */
+.mad__cross[data-boxing='1']::before,
+.mad__cross[data-boxing='1']::after {
+  display: none;
+}
+.mad__cross[data-boxing='1'] .mad__cross-ring {
+  border: 2px dashed rgba(255, 43, 58, 0.9);
+  width: 62px;
+  height: 62px;
+  left: -31px;
+  top: -31px;
+  box-shadow: 0 0 16px rgba(255, 43, 58, 0.75), inset 0 0 10px rgba(255, 43, 58, 0.35);
+  animation: boxingRingPulse 1.8s infinite ease-in-out;
+}
+.mad__cross[data-boxing='1'] .mad__cross-dot {
+  background: #ffcc00;
+  box-shadow: 0 0 12px #ffcc00;
+  width: 8px;
+  height: 8px;
+  left: -4px;
+  top: -4px;
+}
+@keyframes boxingRingPulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.06); opacity: 1; }
+}
+
+/* Dynamic Live Stance Badge */
+.mad__stance-badge {
+  position: absolute;
+  top: 14%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 22px;
+  border-radius: 999px;
+  font: 700 15px/1 var(--font-display, sans-serif);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  z-index: 10;
+}
+.mad__stance-badge[data-stance='block'] {
+  border-color: #38bdf8;
+  color: #38bdf8;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.45);
+}
+.mad__stance-badge[data-stance='dodge'] {
+  border-color: #fbbf24;
+  color: #fbbf24;
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.45);
+}
+.mad__stance-badge[data-stance='jab'] {
+  border-color: #4ade80;
+  color: #4ade80;
+  box-shadow: 0 0 20px rgba(74, 222, 128, 0.45);
+}
+.mad__stance-badge[data-stance='punch'] {
+  border-color: #f43f5e;
+  color: #f43f5e;
+  box-shadow: 0 0 20px rgba(244, 63, 94, 0.45);
+}
+
+.mad__boxing-guide-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.mad__fist-badge {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #fbbf24;
+  text-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
+}
+
 .mad__bottom {
   display: flex;
   align-items: flex-end;
@@ -796,5 +881,68 @@
   font: 500 12px/1.2 var(--mad-body);
   color: #a4abbd;
   letter-spacing: 0.05em;
+}
+
+/* ── Combat Hint & Sprint Controls ── */
+.mad__sprint-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.mad-skip-run {
+  background: rgba(255, 43, 58, 0.25);
+  border: 1px solid var(--red);
+  color: #fff;
+  font: 600 12px/1 var(--mad-body);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  cursor: pointer;
+  pointer-events: auto;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+}
+.mad-skip-run:hover {
+  background: var(--red);
+  box-shadow: 0 0 14px rgba(255, 43, 58, 0.6);
+  transform: translateY(-1px);
+}
+
+.mad__combat-hint {
+  position: absolute;
+  top: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10, 14, 24, 0.88);
+  border: 1px solid rgba(64, 196, 255, 0.45);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(64, 196, 255, 0.2);
+  padding: 8px 22px;
+  border-radius: 4px;
+  text-align: center;
+  pointer-events: none;
+  z-index: 60;
+  animation: mad-pulse-border 2s infinite ease-in-out;
+}
+.mad__combat-hint span {
+  font: 600 clamp(13px, 1.2vw, 15px)/1.4 var(--mad-body);
+  color: #e2f1ff;
+  letter-spacing: 0.04em;
+}
+.mad__combat-hint strong {
+  color: #40c4ff;
+  letter-spacing: 0.06em;
+}
+.mad__combat-hint i {
+  color: #90a4ae;
+  font-style: normal;
+  font-size: 12px;
+  margin-left: 6px;
+}
+
+@keyframes mad-pulse-border {
+  0%, 100% { border-color: rgba(64, 196, 255, 0.45); box-shadow: 0 8px 24px rgba(0,0,0,0.6), 0 0 16px rgba(64, 196, 255, 0.2); }
+  50% { border-color: rgba(255, 43, 58, 0.7); box-shadow: 0 8px 24px rgba(0,0,0,0.6), 0 0 20px rgba(255, 43, 58, 0.35); }
 }
 

@@ -22,6 +22,7 @@ export type Phase =
   | 'versus'
   | 'arcade'
   | 'mad'
+  | 'shadow'
   | 'results';
 
 /** What the camera setup leads to: the chosen mode, the tutorial, or back to the menu. */
@@ -79,7 +80,18 @@ export const INITIAL_FLOW: FlowState = {
 export function launch(state: FlowState, mode: GameModeId): FlowState {
   if (mode === 'duel') return { ...state, mode, phase: 'lobby', duelSeed: null };
   const def = getMode(mode);
-  const phase: Phase = def.kind === 'mad' ? 'mad' : def.kind === 'dance' ? 'dance' : def.kind === 'arcade' ? 'arcade' : def.players === 2 ? 'versus' : 'game';
+  const phase: Phase =
+    def.kind === 'mad'
+      ? 'mad'
+      : def.kind === 'shadow'
+        ? 'shadow'
+        : def.kind === 'dance'
+          ? 'dance'
+          : def.kind === 'arcade'
+            ? 'arcade'
+            : def.players === 2
+              ? 'versus'
+              : 'game';
   return { ...state, mode, phase, runId: state.runId + 1, duelSeed: null };
 }
 

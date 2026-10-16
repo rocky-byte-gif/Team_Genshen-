@@ -15,6 +15,7 @@ interface CampaignMapProps {
   onSelect: (id: number) => void;
   onDeploy: (id: number) => void;
   onExit: () => void;
+  onOpenGuide?: () => void;
 }
 
 /** A smooth route through the mission nodes (map percentages as a 0–100 box). */
@@ -42,7 +43,7 @@ function formatTime(ms: number): string {
 }
 
 /** The campaign map: eight missions along a war-zone route, one new weapon each. */
-export function CampaignMap({ engine, progress, selected, onSelect, onDeploy, onExit }: CampaignMapProps) {
+export function CampaignMap({ engine, progress, selected, onSelect, onDeploy, onExit, onOpenGuide }: CampaignMapProps) {
   const [armedAt] = useState(() => performance.now() + 900);
   const level = LEVELS.find((l) => l.id === selected) as LevelDef;
   const weapon = weaponOf(level.weapon);
@@ -69,9 +70,21 @@ export function CampaignMap({ engine, progress, selected, onSelect, onDeploy, on
           </h1>
           <p className="mad-sub">MOVE · PEEK · AIM · COMBAT</p>
         </div>
-        <button type="button" className="mad-btn mad-btn--ghost" onClick={onExit}>
-          ← Menu
-        </button>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {onOpenGuide && (
+            <button
+              type="button"
+              className="mad-btn mad-btn--ghost"
+              style={{ borderColor: '#40c4ff', color: '#40c4ff' }}
+              onClick={onOpenGuide}
+            >
+              🥋 How to Play &amp; Gestures
+            </button>
+          )}
+          <button type="button" className="mad-btn mad-btn--ghost" onClick={onExit}>
+            ← Menu
+          </button>
+        </div>
       </header>
 
       <section className="mad-map__stage" aria-label="Mission map">
@@ -140,7 +153,15 @@ export function CampaignMap({ engine, progress, selected, onSelect, onDeploy, on
         ) : (
           <div className="mad-brief__actions">
             <HoldGesture engine={engine} label="Deploy" onConfirm={() => onDeploy(level.id)} />
-            <p className="mad-hint">Lean left / right to pick a mission · jump to deploy</p>
+            <button
+              type="button"
+              className="mad-btn"
+              style={{ marginTop: '8px', width: '100%', fontSize: '18px', padding: '10px 18px' }}
+              onClick={() => onDeploy(level.id)}
+            >
+              ▶ Deploy Now
+            </button>
+            <p className="mad-hint">Lean left / right to pick a mission · click or jump to deploy</p>
           </div>
         )}
       </aside>

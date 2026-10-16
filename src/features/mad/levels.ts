@@ -48,22 +48,26 @@ const e = (lane: EnemySpec['lane'], at: number, hits: number, every: number, dmg
 /** The campaign: one new weapon per mission (the deck's "Weapon progression"). */
 export const LEVELS: readonly LevelDef[] = [
   {
-    id: 1, name: 'The Underground Ring', place: 'Boxing Arena', weapon: 'boxing', theme: 'golden', run: 35, range: 6, par: 50,
-    brief: 'Round 1: Step into the ring against a CPU boxer. Throw left and right punches with your fists to knock him out.',
+    id: 1, name: 'The Underground Ring', place: 'Boxing Arena', weapon: 'boxing', theme: 'golden', run: 5, range: 4.5, par: 35,
+    brief: 'Round 1 (1v1 Boxing Duel): Step straight into the ring against the CPU boxer. Throw jabs and power punches with your fists. Raise both hands to block, or duck and lean to dodge!',
     map: { x: 9, y: 74 },
-    enemies: [e(0, 300, 5, 2800, 10, 'barrier')],
+    enemies: [e(0, 200, 5, 2600, 12, 'barrier')],
   },
   {
-    id: 2, name: 'Dojo Showdown', place: 'Ancient Courtyard', weapon: 'sword', theme: 'dusk', run: 40, range: 7, par: 60,
-    brief: 'Round 2: A lethal swordmaster awaits in single combat. Swing your arm to slash and parry with your blade.',
+    id: 2, name: 'Dojo Showdown', place: 'Ancient Courtyard', weapon: 'sword', theme: 'dusk', run: 8, range: 6, par: 45,
+    brief: 'Round 2 (1v1): A lethal swordmaster awaits in single combat. Swing your arm swiftly across to slash with your blade.',
     map: { x: 22, y: 42 },
     enemies: [e(0, 300, 6, 2600, 12, 'barrier')],
   },
   {
-    id: 3, name: 'Rooftop Stronghold', place: 'Industrial Outpost', weapon: 'auto', theme: 'night', run: 45, range: 16, par: 70,
-    brief: 'Round 3: Automatic rifle combat. Smart aim-assist tracks your target for effortless precision elimination.',
+    id: 3, name: 'Rooftop Stronghold', place: 'Industrial Outpost', weapon: 'auto', theme: 'night', run: 16, range: 16, par: 60,
+    brief: 'Round 3 (1v3): Precision shooting against 3 hostile combatants. Smart aim-assist locks onto targets for effortless elimination.',
     map: { x: 36, y: 68 },
-    enemies: [e(0, 300, 7, 2400, 12, 'barrier'), e(1, 2400, 5, 2500, 12, 'crate')],
+    enemies: [
+      e(-1, 300, 4, 2800, 10, 'crate'),
+      e(0, 700, 5, 2600, 11, 'barrier'),
+      e(1, 1400, 4, 2800, 10, 'crate'),
+    ],
   },
   {
     id: 4, name: 'Desert Crossing', place: 'Border district', weapon: 'deagle', theme: 'overcast', run: 55, range: 16, par: 80,

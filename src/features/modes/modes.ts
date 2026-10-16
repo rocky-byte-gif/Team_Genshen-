@@ -24,7 +24,8 @@ export type GameModeId =
   | 'freeze'
   | 'reaction'
   | 'squats'
-  | 'boss';
+  | 'boss'
+  | 'shadow-fight';
 
 /** Groups for the mode picker. */
 export type ModeCategory = 'campaign' | 'run' | 'arcade' | 'dance' | 'duo' | 'online';
@@ -59,15 +60,16 @@ export type ModeIconName =
   | 'freeze'
   | 'reflex'
   | 'squat'
-  | 'boss';
+  | 'boss'
+  | 'fighter';
 
 export interface GameModeDef {
   id: GameModeId;
   category: ModeCategory;
   /** Pictogram on the mode card. */
   icon: ModeIconName;
-  /** runner = obstacle course; dance = dance floor (match poses to the beat); arcade = a mini-game. */
-  kind: 'runner' | 'dance' | 'arcade' | 'mad';
+  /** runner = obstacle course; dance = dance floor; arcade = mini-game; shadow = 2D shadow fighter. */
+  kind: 'runner' | 'dance' | 'arcade' | 'mad' | 'shadow';
   /** Which mini-game (kind = arcade). */
   arcade?: ArcadeKind;
   /** Short facts for the card instead of lives ("60s · arms"). */
@@ -248,6 +250,23 @@ const ALL_MODES: readonly GameModeDef[] = [
     ranked: false,
     goal: 'Outrun your friend',
     timing: DUO_TIMING,
+  },
+  {
+    ...RUNNER,
+    id: 'shadow-fight',
+    category: 'duo',
+    icon: 'fighter',
+    kind: 'shadow',
+    players: 2,
+    title: 'Shadow Fighter',
+    badge: '2 PLAYERS',
+    tagline: '2D Stickman combat duel: throw punches, quick jabs, high guard blocks, and squat dodges in front of one camera!',
+    accent: '#2ee6ff',
+    course: 'standard',
+    energy: GAME_CONFIG.energy,
+    ranked: false,
+    goal: 'Knock out your opponent',
+    facts: 'Best of 3 · Combat Gestures',
   },
   {
     ...RUNNER,

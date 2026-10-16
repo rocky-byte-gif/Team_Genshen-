@@ -33,15 +33,15 @@ interface MenuItem {
 }
 
 const byCategory = (c: ModeCategory) => GAME_MODES.filter((m) => m.category === c).map((m) => m.id);
-const HITS: readonly GameModeId[] = ['mad', 'classic', 'boss', 'dance', 'stars', 'freeze', 'versus'];
+const HITS: readonly GameModeId[] = ['mad', 'classic', 'shadow-fight', 'boss', 'dance', 'stars', 'freeze', 'versus'];
 
 const ITEMS: readonly MenuItem[] = [
   { id: 'campaign', title: 'Shadow Protocol', eyebrow: 'Campaign · Combat Operations', modes: ['mad'] },
   { id: 'play', title: 'Play', eyebrow: 'Quick Start · Best Modes', modes: HITS },
   { id: 'run', title: 'Run', eyebrow: 'Run, jump, duck', modes: byCategory('run') },
-  { id: 'arcade', title: 'Mini-Games', eyebrow: 'Short rounds', modes: byCategory('arcade') },
+  { id: 'arcade', title: 'Mini-Games', eyebrow: 'Short rounds', modes: [...byCategory('arcade'), 'shadow-fight'] },
   { id: 'dance', title: 'Dance Floor', eyebrow: 'Choreography to music', modes: ['dance', 'dance-duo'] },
-  { id: 'duo', title: '2 Players', eyebrow: 'Two at one camera', modes: ['versus', 'dance-duo'] },
+  { id: 'duo', title: '2 Players', eyebrow: 'Two at one camera', modes: ['shadow-fight', 'versus', 'dance-duo'] },
   { id: 'online', title: 'Online Duel', eyebrow: '1v1 over the network', modes: ['duel'] },
   { id: 'leaderboard', title: 'Leaderboard', eyebrow: 'Top players', modes: [] },
   { id: 'achievements', title: 'Achievements', eyebrow: 'Awards for full-body play', modes: [] },
